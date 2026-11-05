@@ -27,7 +27,7 @@ const PHOTO = { x: 0.459, y: 0.5115 }
 const STRAP_RATIO = 310 / 1074
 
 /* scénario : fractions du scroll */
-const T = { meltFrom: 0.05, meltTo: 0.22, swapFrom: 0.2, swapTo: 0.27, moveFrom: 0.33, moveTo: 0.5, openFrom: 0.36, openTo: 0.52, handFrom: 0.5, handTo: 0.54, turnFrom: 0.53, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
+const T = { meltFrom: 0.05, meltTo: 0.22, swapFrom: 0.2, swapTo: 0.27, moveFrom: 0.33, moveTo: 0.52, openFrom: 0.37, openTo: 0.53, handFrom: 0.52, handTo: 0.56, turnFrom: 0.55, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
 
 /* la grille ne dépend pas de l'animation */
 const grid = document.getElementById('grid')
@@ -107,22 +107,30 @@ function start() {
     /* le logo du haut n'arrive que quand le grand logo a disparu : jamais deux SIN à l'écran */
     brand.style.opacity = seg(0.1, 0.3, p).toFixed(3)
 
-    /* la lumière s'ouvre autour de la languette */
-    const open = seg(T.openFrom, T.openTo, p)
-    curtain.style.setProperty('--r', `${(open * Math.hypot(W, Hh) * 1.25).toFixed(0)}px`)
-    curtain.style.display = open >= 1 ? 'none' : ''
-
-    /* la bande 3D laisse place à la vraie languette, qui recule jusqu'à sa place sur la casquette */
+    /* la bande 3D laisse place à la vraie languette */
     canvas.style.opacity = (1 - seg(T.swapFrom, T.swapTo, p)).toFixed(3)
+
+    /* une seule languette à l'écran : le film démarre zoomé, sa languette exactement sous la photo,
+       et les deux reculent verrouillées. La casquette apparaît donc sous la languette. */
     const move = seg(T.moveFrom, T.moveTo, p)
+    const zoom = Math.pow(logoPx / strap.w, 1 - move)
     const sx = (strap.x - W / 2) * move
     const sy = (strap.y - Hh / 2) * move
-    strapImg.style.transform = `translate3d(${sx.toFixed(1)}px,${sy.toFixed(1)}px,0) scale(${mix(1, strap.w / logoPx, move).toFixed(4)})`
+    strapImg.style.transform = `translate3d(${sx.toFixed(1)}px,${sy.toFixed(1)}px,0) scale(${((zoom * strap.w) / logoPx).toFixed(4)})`
     strapImg.style.opacity = (seg(T.swapFrom, T.swapTo, p) * (1 - seg(T.handFrom, T.handTo, p))).toFixed(3)
+
+    /* la lumière s'ouvre autour de la languette et la suit */
+    const open = seg(T.openFrom, T.openTo, p)
+    curtain.style.setProperty('--r', `${(open * Math.hypot(W, Hh) * 1.25).toFixed(0)}px`)
+    curtain.style.setProperty('--x', `${(W / 2 + sx).toFixed(0)}px`)
+    curtain.style.setProperty('--y', `${(Hh / 2 + sy).toFixed(0)}px`)
+    curtain.style.display = open >= 1 ? 'none' : ''
 
     film.seek(ramp(T.turnFrom, T.turnTo, p) * (FRAMES - 1))
     const k = seg(T.shrinkFrom, T.shrinkTo, p)
-    filmBox.style.transform = `translate3d(${(shrink.x * k).toFixed(1)}px,${(shrink.y * k).toFixed(1)}px,0)`
+    const fx = (W / 2 - strap.x) * (1 - move) + shrink.x * k
+    const fy = (Hh / 2 - strap.y) * (1 - move) + shrink.y * k
+    filmBox.style.transform = `translate3d(${fx.toFixed(1)}px,${fy.toFixed(1)}px,0) scale(${zoom.toFixed(4)})`
     photos.style.opacity = seg(T.photoFrom, T.photoTo, p).toFixed(3)
     /* photo posée : le film disparaît, rien ne transparaît quand on change de coloris */
     filmBox.style.visibility = p >= T.photoTo ? 'hidden' : 'visible'
@@ -182,8 +190,7 @@ function start() {
     strap.x = f.left - root.left + f.width * STRAP.x
     strap.y = f.top - root.top + f.height * STRAP.y
     strap.w = f.width * STRAP.w
-    curtain.style.setProperty('--x', `${strap.x.toFixed(0)}px`)
-    curtain.style.setProperty('--y', `${strap.y.toFixed(0)}px`)
+    filmBox.style.transformOrigin = `${STRAP.x * 100}% ${STRAP.y * 100}%`
 
     /* même hauteur de casquette dans la vidéo et les photos : il ne reste qu'à la glisser en place */
     shrink.x = (PHOTO.x - FILM_END.x) * ph.width + ph.left - f.left
