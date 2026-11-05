@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#000000" />
+    <title>SIN Red Paris, maquette du hero</title>
+  </head>
+  <body>
+    <div class="header">
+      <div class="announce">Livraison offerte en France métropolitaine et en Belgique dès 70€ d'achat</div>
+      <nav class="nav" aria-label="Navigation principale">
+        <div class="links">
+          <a href="https://sinredparis.com/" aria-current="page">Home</a>
+          <a href="https://sinredparis.com/collections/all">Shop</a>
+          <a href="https://sinredparis.com/collections/casquette">Lookbook</a>
+          <a href="https://sinredparis.com/pages/contact">Contact</a>
+        </div>
+        <a class="brand" href="https://sinredparis.com/" aria-label="SIN">SIN</a>
+        <div class="tools"><span>EUR</span></div>
+      </nav>
+    </div>
+
+    <main>
+      <section class="hero" id="hero" aria-label="La casquette SIN Red">
+        <div class="pin">
+          <canvas id="stage" aria-hidden="true"></canvas>
+          <img class="fallback" src="./cap-front.webp" alt="Casquette SIN Red navy, languette rouge" />
+
+          <div class="copy c-hint" data-in="-1" data-out="0.05">Scroll<i></i></div>
+
+          <div class="copy c-strap" data-in="0.3" data-out="0.5">
+            <p class="eyebrow">Le logo</p>
+            <h2>Devenu<br />languette.</h2>
+          </div>
+
+          <div class="copy c-turn" data-in="0.52" data-out="0.69">
+            <p class="eyebrow">Paris</p>
+            <h2>Une touche<br />de rouge.</h2>
+          </div>
+
+          <div class="copy c-shop" data-in="0.78" data-out="9">
+            <p class="eyebrow">Nos signatures</p>
+            <h2>SIN RED</h2>
+            <p class="price">€50,00</p>
+            <div class="swatch-row">
+              <span id="swatch-name"></span>
+              <div id="swatches"></div>
+            </div>
+            <a class="cta" href="https://sinredparis.com/collections/all">Voir la collection</a>
+          </div>
+
+          <div class="progress" id="bar"></div>
+        </div>
+      </section>
+
+      <section class="signature">
+        <header>
+          <h2>NOS SIGNATURE</h2>
+          <a href="https://sinredparis.com/collections/all">View all</a>
+        </header>
+        <p class="note">La suite de la page reste celle du site actuel.</p>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
