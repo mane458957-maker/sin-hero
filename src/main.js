@@ -4,6 +4,7 @@ import Lenis from 'lenis'
 import { COLORS, RZ, STRAP_Y } from './cap.js'
 import { buildMorph } from './morph.js'
 import { createFilm } from './film.js'
+import { createThreads } from './threads.js'
 import './style.css'
 
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
@@ -77,6 +78,7 @@ function start() {
   const filmBox = document.getElementById('filmbox')
   const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 16 : 48 })
   const curtain = document.getElementById('curtain')
+  const threads = createThreads(document.getElementById('threads'), { maxRatio: COARSE ? 1.25 : 1.5 })
   const photos = document.getElementById('photos')
   const brand = document.getElementById('brand')
   const bar = document.getElementById('bar')
@@ -206,6 +208,7 @@ function start() {
     stage.w = size * STRAP.w
     stage.x = W / 2
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
+    threads.resize(W, Hh, stage.y)
     dirty = true
   }
 
@@ -243,6 +246,9 @@ function start() {
     const prev = current
     current += (target - current) * (1 - Math.exp(-dt / (COARSE ? 40 : 60)))
     if (Math.abs(target - current) < 0.00005) current = target
+    /* les fils vivent dès l'ouverture, sans attendre le scroll, et se resserrent quand le logo fond */
+    if (visible && current < T.fadeTo) threads.draw(now / 1000, seg(T.meltFrom, T.meltTo + 0.04, current), 1 - seg(T.fadeFrom - 0.04, T.fadeFrom + 0.02, current))
+
     /* le trait vit même quand le visiteur ne scrolle pas */
     const alive = current > T.meltFrom && current < T.handTo
     morph.uniforms.uTime.value = now / 1000
