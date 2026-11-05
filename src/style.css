@@ -28,7 +28,7 @@ a { color: inherit; text-decoration: none; }
 .tools { grid-column: 3; justify-self: end; display: flex; gap: 18px; font-size: 13px; }
 
 /* Hero : la hauteur de cette section règle la longueur de l'animation */
-.hero { position: relative; height: 620vh; background: #000; }
+.hero { position: relative; height: 1021vh; background: #000; }
 .pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; background: #ededed; --ps: min(72vw, 118vh); --ps: min(72vw, 118svh); }
 #stage { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; pointer-events: none; }
 .filmbox { position: absolute; z-index: 0; right: 0; top: calc(50% + 30px); translate: 0 -50%; width: var(--ps); height: var(--ps); will-change: transform; -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent), linear-gradient(to bottom, transparent, #000 5%, #000 95%, transparent); -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent), linear-gradient(to bottom, transparent, #000 5%, #000 95%, transparent); mask-composite: intersect; }
