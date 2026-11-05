@@ -272,9 +272,9 @@ function start() {
 
     /* les fils vivent dès l'ouverture, sans attendre le scroll, et se resserrent quand le logo fond */
     if (visible && current < T.fadeTo) {
-      threads.draw(now / 1000, seg(T.meltFrom, T.meltTo + 0.04, current), seg(0.012, 0.08, current) * (1 - seg(T.fadeFrom - 0.04, T.fadeFrom + 0.02, current)))
-      /* la pluie vit tant qu'on n'a pas scrollé, et s'efface dès les premiers pixels */
-      rain.draw(now / 1000, 1 - seg(0.002, 0.04, current))
+      threads.draw(now / 1000, seg(T.meltFrom, T.meltTo + 0.04, current), seg(T.meltTo - 0.02, T.meltTo + 0.06, current) * (1 - seg(T.fadeFrom - 0.04, T.fadeFrom + 0.02, current)))
+      /* la pluie continue pendant que le logo fond, et s'efface une fois la bande rouge formée */
+      rain.draw(now / 1000, 1 - seg(T.meltTo - 0.02, T.meltTo + 0.06, current))
     }
 
     /* le trait vit même quand le visiteur ne scrolle pas */
