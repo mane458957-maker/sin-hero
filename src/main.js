@@ -1,34 +1,22 @@
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import Lenis from 'lenis'
-import { COLORS, RZ, STRAP_Y } from './cap.js'
+import { buildCap, COLORS, RZ, STRAP_Y } from './cap.js'
 import { buildMorph } from './morph.js'
-import { createFilm } from './film.js'
 import './style.css'
 
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
 const ramp = (a, b, x) => clamp((x - a) / (b - a))
 const ease = (t) => t * t * t * (t * (6 * t - 15) + 10)
 const seg = (a, b, x) => ease(ramp(a, b, x))
-const mix = (a, b, t) => a + (b - a) * t
 
 const COARSE = matchMedia('(pointer:coarse)').matches
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches
 const hero = document.getElementById('hero')
-const pin = hero.querySelector('.pin')
 const canvas = document.getElementById('stage')
 const params = new URLSearchParams(location.search)
 
-/* repères mesurés sur la vidéo (fractions du cadre) et sur les photos produit */
-const FRAMES = 243
-const STRAP = { x: 0.48, y: 0.8, w: 0.3 }
-const FILM_END = { x: 0.45, y: 0.526, w: 0.895 }
-const PHOTO = { x: 0.459, y: 0.512, w: 0.604 }
-
-/* scénario : fractions du scroll */
-const T = { meltFrom: 0.05, meltTo: 0.3, bendFrom: 0.2, bendTo: 0.42, openFrom: 0.34, openTo: 0.5, turnFrom: 0.48, turnTo: 0.74, shrinkFrom: 0.7, shrinkTo: 0.77, photoFrom: 0.75, photoTo: 0.785 }
-
-/* la grille ne dépend pas de l'animation */
+/* la grille ne dépend pas de la 3D */
 const grid = document.getElementById('grid')
 COLORS.forEach((c) => {
   const a = document.createElement('a')
@@ -48,7 +36,7 @@ COLORS.forEach((c) => {
 
 let renderer
 try {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' })
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
 } catch {
   document.documentElement.classList.add('no-webgl')
 }
@@ -57,49 +45,169 @@ if (renderer) start()
 
 function start() {
   renderer.toneMapping = THREE.NeutralToneMapping
-  renderer.setClearColor(0x000000, 0)
+  renderer.toneMappingExposure = 1
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.VSMShadowMap
 
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 40)
-  const envMap = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.03).texture
-  const morph = buildMorph({ fieldWidth: COARSE ? 1280 : 2048, envMap })
-  morph.material.envMapIntensity = 0.14
-  scene.add(morph.mesh)
 
-  const filmBox = document.getElementById('filmbox')
-  const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 24 : 60 })
-  const curtain = document.getElementById('curtain')
-  const photos = document.getElementById('photos')
-  const brand = document.getElementById('brand')
-  const bar = document.getElementById('bar')
-  const cta = document.getElementById('cta')
-  const swatches = document.getElementById('swatches')
-  const swatchName = document.getElementById('swatch-name')
+  const pmrem = new THREE.PMREMGenerator(renderer)
+  const envMap = pmrem.fromScene(new RoomEnvironment(), 0.03).texture
+
+  const cap = buildCap({ textureSize: COARSE ? 2048 : 4096, envMap })
+  const morph = buildMorph({ fieldWidth: COARSE ? 1280 : 2048, envMap })
+  /* la casquette se pose nez légèrement relevé, sur le bord arrière et le bout de visière */
+  const rig = new THREE.Group()
+  rig.add(cap.group, morph.mesh)
+  scene.add(rig)
+
+  const key = new THREE.DirectionalLight('#fff4ea', 0)
+  key.position.set(2.6, 4.4, 2.2)
+  key.castShadow = true
+  key.shadow.mapSize.set(COARSE ? 1024 : 2048, COARSE ? 1024 : 2048)
+  key.shadow.radius = 9
+  key.shadow.blurSamples = COARSE ? 10 : 18
+  key.shadow.bias = -0.0006
+  key.shadow.autoUpdate = false
+  Object.assign(key.shadow.camera, { left: -2.4, right: 2.4, top: 2.4, bottom: -2.4, near: 1, far: 11 })
+  const rim = new THREE.DirectionalLight('#ffffff', 0)
+  const redKick = new THREE.PointLight('#ff2030', 0, 5, 1.6)
+  redKick.position.set(0, 0.2, -1.5)
+  scene.add(key, rim, rim.target, redKick)
+
+  /* ombre de contact : c'est elle qui pose l'objet sur le sol */
+  const blobCanvas = document.createElement('canvas')
+  blobCanvas.width = blobCanvas.height = 256
+  const bctx = blobCanvas.getContext('2d')
+  const grad = bctx.createRadialGradient(128, 128, 18, 128, 128, 128)
+  grad.addColorStop(0, 'rgba(0,0,0,.95)')
+  grad.addColorStop(0.55, 'rgba(0,0,0,.42)')
+  grad.addColorStop(1, 'rgba(0,0,0,0)')
+  bctx.fillStyle = grad
+  bctx.fillRect(0, 0, 256, 256)
+  const contact = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.7, 3.4),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(blobCanvas), transparent: true, opacity: 0, depthWrite: false, toneMapped: false })
+  )
+  contact.rotation.x = -Math.PI / 2
+  contact.position.set(0, -0.165, 0.28)
+  scene.add(contact)
+
+  const black = new THREE.Color('#000000')
+  const paper = new THREE.Color('#ededed')
+  const bg = new THREE.Color()
+
+  /* trajectoire : caméra derrière la languette, recul, puis tour jusqu'au trois-quarts avant */
+  const flatTarget = new THREE.Vector3(0, STRAP_Y, -RZ)
+  const capTarget = new THREE.Vector3(0, 0.36, 0.2)
+  const KEYS = [
+    { p: 0.0, az: 180, el: 0, fit: 'logo', t: 0 },
+    { p: 0.28, az: 180, el: 1, fit: 'logo', t: 0 },
+    { p: 0.46, az: 172, el: 13, fit: 'back', t: 0.55 },
+    { p: 0.72, az: 58, el: 9, fit: 'cap', t: 1 },
+    { p: 1.0, az: 58, el: 9, fit: 'cap', t: 1 },
+  ]
 
   let W = 1
   let Hh = 1
-  const strap = { x: 0, y: 0, w: 1 }
-  const shrink = { s: 1, x: 0, y: 0 }
+  /* où se trouve la casquette dans les photos produit (toutes cadrées pareil) :
+     la 3D vient se poser exactement là avant de laisser place à la photo */
+  const CAP_X = 0.51
+  const CAP_Y = 0.512
+  const CAP_W = 0.6
+  const CAP_WORLD = 2.8
+  const shot = { x: 0, y: 0, w: 1 }
+  const fitDistance = (w, h) => {
+    const th = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
+    return Math.max(h / 2 / th, w / 2 / (th * camera.aspect))
+  }
+  const fits = () => ({
+    logo: fitDistance(morph.flatW * (W < Hh ? 1.16 : 1.9), morph.flatH * 2.6),
+    back: fitDistance(W < Hh ? 2.45 : 2.9, 2.6),
+    cap: (CAP_WORLD * Hh) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * shot.w),
+  })
 
-  const look = new THREE.Vector3(0, STRAP_Y, -RZ)
-  const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
-  const pxDistance = (world, px) => (world * Hh) / (2 * tanHalf * px)
+  const look = new THREE.Vector3()
+  const pos = new THREE.Vector3()
+  let pointerX = 0
+  let pointerY = 0
+  let px = 0
+  let py = 0
+  let colorIndex = 0
+  let shadowReady = false
+  let lockedColor = -1
 
   function placeCamera(p) {
-    const t = seg(T.bendFrom, T.bendTo, p)
-    const logoPx = Math.min(W * (W < Hh ? 0.86 : 0.52), Hh * 0.9)
-    const dist = mix(pxDistance(morph.flatW, logoPx), pxDistance(morph.flatW, strap.w), t)
-    const el = THREE.MathUtils.degToRad(mix(0, 22, t))
-    camera.position.set(0, Math.sin(el) * dist, -Math.cos(el) * dist).add(look)
+    const f = fits()
+    let i = 0
+    while (i < KEYS.length - 2 && p > KEYS[i + 1].p) i++
+    const a = KEYS[i]
+    const b = KEYS[i + 1]
+    const t = seg(a.p, b.p, p)
+    const az = THREE.MathUtils.degToRad(a.az + (b.az - a.az) * t)
+    const el = THREE.MathUtils.degToRad(a.el + (b.el - a.el) * t)
+    const dist = f[a.fit] + (f[b.fit] - f[a.fit]) * t
+    look.lerpVectors(flatTarget, capTarget, a.t + (b.t - a.t) * t)
+    pos.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist).add(look)
+    /* léger parallaxe souris */
+    pos.x += px * 0.09 * dist * 0.12
+    pos.y += py * 0.06 * dist * 0.12
+    camera.position.copy(pos)
     camera.lookAt(look)
-    camera.setViewOffset(W, Hh, -(strap.x - W / 2) * t, -(strap.y - Hh / 2) * t, W, Hh)
+    const side = seg(0.5, 0.72, p)
+    camera.setViewOffset(W, Hh, -shot.x * side, -shot.y * side, W, Hh)
   }
 
-  const blocks = [...document.querySelectorAll('[data-in]')].map((el) => ({ el, a: +el.dataset.in, b: +el.dataset.out }))
+  function setScene(p) {
+    const melt = seg(0.05, 0.3, p)
+    const bend = seg(0.2, 0.42, p)
+    const reveal = seg(0.26, 0.5, p)
+    const day = seg(0.6, 0.76, p)
 
-  function setPage(p) {
+    morph.uniforms.uMelt.value = melt
+    morph.uniforms.uBend.value = bend
+    morph.uniforms.uDepth.value = 0.07 + (0.014 - 0.07) * melt
+    morph.uniforms.uGlow.value = 1 - seg(0.3, 0.6, p) * 0.97
+
+    const tilt = THREE.MathUtils.degToRad(-5.7) * seg(0.46, 0.7, p)
+    if (tilt !== rig.rotation.x || !shadowReady) {
+      rig.rotation.x = tilt
+      key.shadow.needsUpdate = true
+      shadowReady = true
+    }
+
+    cap.setLight(reveal * (0.5 + day * 0.28))
+    morph.material.envMapIntensity = 0.14 + reveal * 0.3 + day * 0.5
+    key.intensity = reveal * (1.4 + day * 0.9)
+    rim.intensity = reveal * (1 - day) * 2.6
+    rim.position.set(camera.position.x * -1 + 1.5, 3, camera.position.z * -1)
+    redKick.intensity = seg(0.2, 0.42, p) * (1 - seg(0.5, 0.64, p)) * 2.4
+    cap.details.visible = bend > 0.97
+    cap.details.scale.y = 1
+
+    contact.material.opacity = 0.5 * day
+    bg.lerpColors(black, paper, day)
+    /* couleur d'effacement et pas scene.background : elle échappe au tone mapping, donc colle au fond des photos */
+    renderer.setClearColor(bg, 1)
+
+    /* les coloris défilent sur la fin, sauf si le visiteur en a choisi un */
+    const idx = lockedColor >= 0 ? lockedColor : Math.min(COLORS.length - 1, Math.floor(ramp(0.8, 0.985, p) * COLORS.length))
+    if (idx !== colorIndex) {
+      colorIndex = idx
+      updateSwatches()
+    }
+    document.documentElement.style.setProperty('--day', day.toFixed(3))
+  }
+
+  const blocks = [...document.querySelectorAll('[data-in]')].map((el) => ({
+    el,
+    a: +el.dataset.in,
+    b: +el.dataset.out,
+  }))
+  function setCopy(p) {
     for (const { el, a, b } of blocks) {
-      const o = ramp(a, a + 0.03, p) * (1 - ramp(b - 0.03, b, p))
+      const o = ramp(a, a + 0.035, p) * (1 - ramp(b - 0.035, b, p))
       el.style.opacity = o.toFixed(3)
       el.style.transform = `translate3d(0,${((1 - o) * 18).toFixed(1)}px,0)`
       el.style.pointerEvents = o > 0.6 ? 'auto' : 'none'
@@ -107,38 +215,23 @@ function start() {
     bar.style.transform = `scaleX(${p.toFixed(4)})`
     /* le logo du haut n'arrive que quand le grand logo a disparu : jamais deux SIN à l'écran */
     brand.style.opacity = seg(0.1, 0.3, p).toFixed(3)
-
-    /* la lumière s'ouvre autour de la languette */
-    const open = seg(T.openFrom, T.openTo, p)
-    curtain.style.setProperty('--r', `${(open * Math.hypot(W, Hh) * 1.25).toFixed(0)}px`)
-    curtain.style.display = open >= 1 ? 'none' : ''
-    canvas.style.opacity = (1 - seg(T.openFrom + 0.06, T.openTo - 0.03, p)).toFixed(3)
-
-    film.seek(ramp(T.turnFrom, T.turnTo, p) * (FRAMES - 1))
-    const k = seg(T.shrinkFrom, T.shrinkTo, p)
-    filmBox.style.transform = `translate3d(${(shrink.x * k).toFixed(1)}px,${(shrink.y * k).toFixed(1)}px,0) scale(${mix(1, shrink.s, k).toFixed(4)})`
-    photos.style.opacity = seg(T.photoFrom, T.photoTo, p).toFixed(3)
-    /* photo posée : le film disparaît, rien ne transparaît quand on change de coloris */
-    filmBox.style.visibility = p >= T.photoTo ? 'hidden' : 'visible'
-
-    /* les coloris défilent sur la fin, sauf si le visiteur en a choisi un */
-    const idx = lockedColor >= 0 ? lockedColor : Math.min(COLORS.length - 1, Math.floor(ramp(0.81, 0.985, p) * COLORS.length))
-    if (idx !== colorIndex) {
-      colorIndex = idx
-      updateSwatches()
-    }
+    photos.style.opacity = seg(0.73, 0.77, p).toFixed(3)
   }
 
-  let colorIndex = 0
-  let lockedColor = -1
-  const shots = COLORS.map((c) => {
+  const bar = document.getElementById('bar')
+  const brand = document.getElementById('brand')
+  const photos = document.getElementById('photos')
+  const cta = document.getElementById('cta')
+  const shots = COLORS.map((c, i) => {
     const img = new Image()
     img.alt = c.title
-    img.decoding = 'sync'
+    img.decoding = 'async'
     img.src = `./caps/${c.id}.jpg`
     photos.append(img)
     return img
   })
+  const swatches = document.getElementById('swatches')
+  const swatchName = document.getElementById('swatch-name')
   COLORS.forEach((c, i) => {
     const b = document.createElement('button')
     b.type = 'button'
@@ -158,33 +251,30 @@ function start() {
   }
   updateSwatches()
 
+  /* si la machine décroche, on baisse la définition plutôt que la fluidité */
+  let quality = 1
+  let slow = 0
+  function adapt(ms) {
+    slow = ms > 30 ? slow + 1 : Math.max(0, slow - 1)
+    if (slow > 24 && quality > 0.55) {
+      quality -= 0.15
+      slow = 0
+      resize()
+    }
+  }
+
   function resize() {
-    W = pin.clientWidth
-    Hh = pin.clientHeight
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, COARSE ? 1.75 : 2))
+    W = hero.querySelector('.pin').clientWidth
+    Hh = hero.querySelector('.pin').clientHeight
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, COARSE ? 1.75 : 2) * quality)
     renderer.setSize(W, Hh, false)
     camera.aspect = W / Hh
     camera.updateProjectionMatrix()
-
-    const saved = filmBox.style.transform
-    filmBox.style.transform = 'none'
-    const root = pin.getBoundingClientRect()
-    const f = filmBox.getBoundingClientRect()
-    const ph = photos.getBoundingClientRect()
-    filmBox.style.transform = saved
-
-    strap.x = f.left - root.left + f.width * STRAP.x
-    strap.y = f.top - root.top + f.height * STRAP.y
-    strap.w = f.width * STRAP.w
-    curtain.style.setProperty('--x', `${strap.x.toFixed(0)}px`)
-    curtain.style.setProperty('--y', `${strap.y.toFixed(0)}px`)
-
-    /* le film recule pour que la casquette prenne la taille et la place de la photo */
-    shrink.s = (ph.width * PHOTO.w) / (f.width * FILM_END.w)
-    const cx = f.left + f.width / 2
-    const cy = f.top + f.height / 2
-    shrink.x = ph.left + ph.width * PHOTO.x - (cx + (FILM_END.x - 0.5) * f.width * shrink.s)
-    shrink.y = ph.top + ph.height * PHOTO.y - (cy + (FILM_END.y - 0.5) * f.height * shrink.s)
+    const box = photos.getBoundingClientRect()
+    const pin = hero.querySelector('.pin').getBoundingClientRect()
+    shot.x = box.left - pin.left + box.width * CAP_X - W / 2
+    shot.y = box.top - pin.top + box.height * CAP_Y - Hh / 2
+    shot.w = box.width * CAP_W
     dirty = true
   }
 
@@ -202,6 +292,10 @@ function start() {
 
   const lenis = COARSE || REDUCED ? null : new Lenis({ lerp: 0.09, wheelMultiplier: 0.9 })
   addEventListener('resize', resize)
+  addEventListener('pointermove', (e) => {
+    pointerX = (e.clientX / innerWidth) * 2 - 1
+    pointerY = (e.clientY / innerHeight) * 2 - 1
+  })
 
   let visible = true
   new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(hero)
@@ -211,25 +305,43 @@ function start() {
     dirty = true
   }
 
+  /* coût GPU réel d'une image, indépendant de la cadence du navigateur */
+  window.__bench = (p, n = 20) => {
+    const gl = renderer.getContext()
+    const px = new Uint8Array(4)
+    placeCamera(p)
+    setScene(p)
+    renderer.render(scene, camera)
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px)
+    const t = performance.now()
+    for (let i = 0; i < n; i++) {
+      renderer.render(scene, camera)
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px)
+    }
+    return +((performance.now() - t) / n).toFixed(1)
+  }
+
   let last = performance.now()
   function frame(now) {
-    const dt = Math.min(120, now - last)
+    const raw = now - last
+    const dt = Math.min(120, raw)
     last = now
     lenis?.raf(now)
     readScroll()
+    const k = 1 - Math.exp(-dt / (COARSE ? 40 : 60))
     const prev = current
-    current += (target - current) * (1 - Math.exp(-dt / (COARSE ? 40 : 60)))
+    current += (target - current) * k
     if (Math.abs(target - current) < 0.00005) current = target
-    if (visible && (prev !== current || dirty)) {
-      setPage(current)
-      /* passé l'ouverture, seule la vidéo travaille */
-      if (current < T.openTo) {
-        morph.uniforms.uMelt.value = seg(T.meltFrom, T.meltTo, current)
-        morph.uniforms.uBend.value = seg(T.bendFrom, T.bendTo, current)
-        morph.uniforms.uDepth.value = mix(0.07, 0.014, seg(T.meltFrom, T.meltTo, current))
-        placeCamera(current)
-        renderer.render(scene, camera)
-      }
+    px += (pointerX - px) * 0.05
+    py += (pointerY - py) * 0.05
+    const moving = prev !== current || Math.abs(pointerX - px) + Math.abs(pointerY - py) > 0.002
+    if (visible && (moving || dirty)) {
+      placeCamera(current)
+      setScene(current)
+      setCopy(current)
+      /* une fois la photo posée, inutile de calculer la 3D derrière */
+      if (current < 0.78) renderer.render(scene, camera)
+      if (document.visibilityState === 'visible' && raw < 200) adapt(raw)
       dirty = false
     }
     requestAnimationFrame(frame)
