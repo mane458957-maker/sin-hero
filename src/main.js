@@ -70,7 +70,7 @@ function start() {
   scene.add(morph.mesh)
 
   const filmBox = document.getElementById('filmbox')
-  const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 24 : 60 })
+  const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 16 : 48 })
   const curtain = document.getElementById('curtain')
   const strapImg = document.getElementById('strap')
   const photos = document.getElementById('photos')
@@ -200,7 +200,8 @@ function start() {
 
     /* taille de révélation : toute la casquette tient entre l'en-tête et le bas de l'écran */
     const room = Hh - 106
-    const size = Math.min((room / CAP_SPAN) * 0.92, W * 2.25)
+    /* la vidéo fait 960 px : pas de zoom sur ordinateur, à peine sur téléphone, sinon elle devient floue */
+    const size = Math.min((room / CAP_SPAN) * 0.92, W < Hh ? W * 1.7 : f.width)
     stage.zoom = size / f.width
     stage.w = size * STRAP.w
     stage.x = W / 2
