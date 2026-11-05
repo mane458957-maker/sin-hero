@@ -61,7 +61,7 @@ a { color: inherit; text-decoration: none; }
 .cta:hover { background: var(--red); }
 
 /* Vraies photos produit : la 3D se pose dessus puis s'efface */
-.photos { position: absolute; z-index: 1; right: 0; top: calc(50% + 30px); translate: 0 -50%; width: min(72vw, 118vh); width: min(72vw, 118svh); aspect-ratio: 1; opacity: 0; pointer-events: none; -webkit-mask-image: radial-gradient(closest-side, #000 74%, transparent 100%); mask-image: radial-gradient(closest-side, #000 74%, transparent 100%); }
+.photos { position: absolute; z-index: 1; right: 0; top: calc(50% + 30px); translate: 0 -50%; width: min(72vw, 118vh); width: min(72vw, 118svh); aspect-ratio: 1; opacity: 0; pointer-events: none; background: #ededed; -webkit-mask-image: radial-gradient(closest-side, #000 74%, transparent 100%); mask-image: radial-gradient(closest-side, #000 74%, transparent 100%); }
 .photos img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .45s ease; }
 .photos img.on { opacity: 1; }
 
