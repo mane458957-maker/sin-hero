@@ -71,7 +71,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Fils de couleur : de la pastille à la casquette */
 main { position: relative; }
-#sew { position: absolute; left: 0; z-index: 6; pointer-events: none; overflow: visible; }
+#sew { position: fixed; left: 0; top: 0; width: 100vw; height: 100%; z-index: 6; pointer-events: none; }
 
 /* Suite de la page */
 .signature { background: #fff; color: var(--ink); padding: 56px clamp(16px, 4vw, 30px) 28vh; }

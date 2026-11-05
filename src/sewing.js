@@ -1,10 +1,10 @@
-/* Fin du hero : chaque pastille lâche un fil qui descend, s'enroule autour d'une casquette blanche,
-   lui donne sa couleur, puis disparaît à l'intérieur comme s'il était cousu. Tout est lié au scroll.
-   La pointe glisse de la pastille jusqu'au repère HEAD_AT de l'écran : elle reste toujours visible,
-   même quand la casquette est loin en bas sur téléphone. */
-const SVG = 'http://www.w3.org/2000/svg'
+/* Fin du hero : chaque pastille lâche un fil. Tous descendent en faisceau par le milieu de la page,
+   puis chacun part à gauche ou à droite vers sa casquette blanche, s'enroule autour, lui donne sa
+   couleur et disparaît à l'intérieur comme s'il était cousu. Tout est lié au scroll.
+   Les fils sont peints sur un canvas : une ligne vectorielle ne peut pas avoir l'aspect d'un fil torsadé. */
 const HEAD_AT = 0.7
 const STAGGER = 22
+const STEP = 3
 /* repères sur les photos produit : le bouton du dessus, puis la couronne autour de laquelle le fil tourne */
 const BUTTON = { x: 0.545, y: 0.33 }
 const COIL = { x: 0.535, rx: 0.235, ry: 0.052, top: 0.37, bottom: 0.6, turns: 3.5 }
@@ -15,31 +15,10 @@ const smooth = (a, b, x) => {
   return t * t * (3 - 2 * t)
 }
 
-function isLight(hex) {
+function shade(hex, f) {
   const n = parseInt(hex.slice(1), 16)
-  return (0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)) / 255 > 0.72
-}
-
-/* un fil souple : quelques ondulations qui se calment en arrivant */
-function threadPath(a, b, i, lane) {
-  const side = i % 2 ? 1 : -1
-  const sway = 26 + (i * 17) % 44
-  const points = [a]
-  /* les rangées du bas passent par l'espace entre les cartes : chaque fil ne touche que sa casquette */
-  const end = lane ? { x: lane.x, y: lane.top } : b
-  for (const [f, s] of [[0.28, 1], [0.58, -0.8], [0.84, 0.35]]) {
-    points.push({ x: a.x + (end.x - a.x) * f + sway * s * side, y: a.y + (end.y - a.y) * f })
-  }
-  if (lane) points.push({ x: lane.x, y: lane.top }, { x: lane.x, y: lane.bottom })
-  points.push(b)
-  let d = `M${a.x} ${a.y}`
-  for (let k = 1; k < points.length; k++) {
-    const p = points[k - 1]
-    const q = points[k]
-    const h = (q.y - p.y) * 0.5
-    d += ` C${p.x} ${p.y + h} ${q.x} ${q.y - h} ${q.x} ${q.y}`
-  }
-  return d
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f))
+  return `rgb(${c[0]},${c[1]},${c[2]})`
 }
 
 /* l'hélice autour de la couronne, du haut vers le bord de la casquette */
@@ -58,24 +37,16 @@ function coilPath(box) {
   return d
 }
 
-export function createSewing({ svg, hero, pin, copy, swatches, cards, colors, holdRatio }) {
-  const make = (color) => {
-    const path = (attrs) => {
-      const p = document.createElementNS(SVG, 'path')
-      p.setAttribute('fill', 'none')
-      p.setAttribute('stroke-linecap', 'round')
-      p.setAttribute('stroke-linejoin', 'round')
-      for (const k in attrs) p.setAttribute(k, attrs[k])
-      svg.append(p)
-      return p
-    }
-    /* les fils clairs ont un liseré, sinon ils disparaissent sur le blanc */
-    const edge = isLight(color.hex) ? path({ stroke: 'rgba(0,0,0,.24)', 'stroke-width': 3.4 }) : null
-    return { edge, line: path({ stroke: color.hex, 'stroke-width': 2.2 }) }
-  }
+export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards, colors, holdRatio }) {
+  const ctx = canvas.getContext('2d')
   const threads = colors.map((color, i) => ({
-    ...make(color),
+    i,
+    base: color.hex,
+    dark: shade(color.hex, -0.38),
+    light: shade(color.hex, 0.42),
     img: cards[i].querySelector('.tint'),
+    xs: new Float32Array(0),
+    ys: new Float32Array(0),
     from: 0,
     arrive: 1,
     done: 2,
@@ -85,16 +56,43 @@ export function createSewing({ svg, hero, pin, copy, swatches, cards, colors, ho
   threads.forEach((t) => (t.img.style.opacity = 0))
   let last = -1
   let release = 0
+  let originY = 0
+  let width = 3
+  let ratio = 1
+
+  function fit() {
+    ratio = Math.min(devicePixelRatio || 1, 2)
+    canvas.width = Math.round(innerWidth * ratio)
+    canvas.height = Math.round(innerHeight * ratio)
+    last = -1
+  }
+
+  function sample(t, d) {
+    measure.setAttribute('d', d)
+    const length = measure.getTotalLength()
+    const n = Math.ceil(length / STEP) + 1
+    t.xs = new Float32Array(n)
+    t.ys = new Float32Array(n)
+    for (let k = 0; k < n; k++) {
+      const p = measure.getPointAtLength(Math.min(length, k * STEP))
+      t.xs[k] = p.x
+      t.ys[k] = p.y
+    }
+    t.length = length
+  }
 
   function layout() {
-    const main = svg.parentElement.getBoundingClientRect()
+    fit()
+    const main = canvas.parentElement.getBoundingClientRect()
     const root = pin.getBoundingClientRect()
-    const heroEnd = hero.getBoundingClientRect().bottom - main.top - pin.clientHeight
+    const heroBottom = hero.getBoundingClientRect().bottom - main.top
+    const heroEnd = heroBottom - pin.clientHeight
     const vh = innerHeight
     const maxScroll = document.documentElement.scrollHeight - vh - 2
-    const base = main.top + scrollY
-    release = heroEnd + base
+    originY = main.top + scrollY
+    release = heroEnd + originY
     const hold = hero.offsetHeight * holdRatio
+    width = main.width < 700 ? 2.6 : 3.1
 
     /* la position des pastilles sans le petit décalage d'apparition du texte */
     const saved = copy.style.transform
@@ -105,30 +103,34 @@ export function createSewing({ svg, hero, pin, copy, swatches, cards, colors, ho
     })
     copy.style.transform = saved
 
-    const shift = svg.style.transform
-    svg.style.transform = 'none'
-    const top = Math.min(...starts.map((s) => s.y)) - 4
-    const lastCard = cards[cards.length - 1].getBoundingClientRect()
-    svg.style.top = `${top}px`
-    svg.setAttribute('width', main.width)
-    svg.setAttribute('height', lastCard.bottom - main.top - top)
-    svg.style.transform = shift
-
-    const firstRow = cards[0].getBoundingClientRect().top
-    threads.forEach((t, i) => {
+    const trunkTop = heroBottom + 6
+    threads.forEach((t) => {
+      const { i } = t
       const r = t.img.getBoundingClientRect()
-      const box = { x: r.left - main.left, y: r.top - main.top - top, w: r.width, h: r.height }
-      const a = { x: starts[i].x, y: starts[i].y - top }
+      const box = { x: r.left - main.left, y: r.top - main.top, w: r.width, h: r.height }
+      const a = starts[i]
       const b = { x: box.x + box.w * BUTTON.x, y: box.y + box.h * BUTTON.y }
-      const lane = r.top - firstRow > 8 ? { x: box.x - 7 + (i % 3) - 1, top: firstRow - main.top - top - 14, bottom: box.y - 12 } : null
 
-      const run = threadPath(a, b, i, lane)
-      t.line.setAttribute('d', run)
-      t.run = t.line.getTotalLength()
-      const d = run + coilPath(box)
-      t.line.setAttribute('d', d)
-      t.edge?.setAttribute('d', d)
-      t.length = t.line.getTotalLength()
+      /* le faisceau reste dans l'espace central, entre les colonnes de cartes */
+      const cx = main.width / 2 + (i - (colors.length - 1) / 2) * 0.65
+      const dir = b.x > cx ? 1 : -1
+      const bend = Math.min(20, Math.abs(b.x - cx) / 2)
+      const exit = box.y - 9 - (i % 4) * 3
+      const h = (trunkTop - a.y) * 0.62
+      const run =
+        `M${a.x} ${a.y} C${a.x} ${a.y + h} ${cx} ${trunkTop - h} ${cx} ${trunkTop}` +
+        ` L${cx} ${exit - bend} Q${cx} ${exit} ${cx + dir * bend} ${exit}` +
+        ` L${b.x - dir * bend} ${exit} Q${b.x} ${exit} ${b.x} ${exit + bend} L${b.x} ${b.y}`
+
+      measure.setAttribute('d', run)
+      t.run = measure.getTotalLength()
+      sample(t, run + coilPath(box))
+
+      /* dans le faisceau, les fils s'entrelacent légèrement */
+      for (let k = 0; k < t.xs.length; k++) {
+        const y = t.ys[k]
+        t.xs[k] += 1.5 * Math.sin(y * 0.03 + i * 1.1) * smooth(trunkTop, trunkTop + 60, y) * (1 - smooth(exit - bend - 50, exit - bend, y)) * (k * STEP < t.run ? 1 : 0)
+      }
 
       const capY = r.top + r.height * BUTTON.y + scrollY
       t.from = release - hold + i * STAGGER
@@ -138,28 +140,94 @@ export function createSewing({ svg, hero, pin, copy, swatches, cards, colors, ho
     last = -1
   }
 
+  /* un fil : ombre, âme colorée, puis les brins torsadés et quelques fibres qui dépassent */
+  function paint(t, k0, k1, dy) {
+    const { xs, ys } = t
+    const line = () => {
+      ctx.beginPath()
+      ctx.moveTo(xs[k0], ys[k0] + dy)
+      for (let k = k0 + 1; k <= k1; k++) ctx.lineTo(xs[k], ys[k] + dy)
+    }
+    ctx.lineJoin = ctx.lineCap = 'round'
+
+    ctx.save()
+    ctx.translate(0.7, 1.3)
+    line()
+    ctx.strokeStyle = 'rgba(0,0,0,.2)'
+    ctx.lineWidth = width + 0.8
+    ctx.stroke()
+    ctx.restore()
+
+    line()
+    ctx.strokeStyle = t.base
+    ctx.lineWidth = width
+    ctx.stroke()
+
+    /* brins : traits obliques réguliers, sombres puis clairs, comme un fil retors */
+    const half = width / 2
+    const strands = (shift, colour, size) => {
+      ctx.beginPath()
+      for (let k = k0 + shift; k < k1; k += 2) {
+        const tx = xs[k + 1] - xs[k]
+        const ty = ys[k + 1] - ys[k]
+        const l = Math.hypot(tx, ty) || 1
+        const ux = tx / l
+        const uy = ty / l
+        const y = ys[k] + dy
+        ctx.moveTo(xs[k] - uy * half - ux * 1.4, y + ux * half - uy * 1.4)
+        ctx.lineTo(xs[k] + uy * half + ux * 1.4, y - ux * half + uy * 1.4)
+      }
+      ctx.strokeStyle = colour
+      ctx.lineWidth = size
+      ctx.lineCap = 'butt'
+      ctx.stroke()
+    }
+    strands(0, t.dark, 1)
+    strands(1, t.light, 0.8)
+
+    /* fibres : rares et fines, c'est ce qui enlève le côté trop parfait */
+    ctx.beginPath()
+    for (let k = k0 + (k0 % 11 ? 11 - (k0 % 11) : 0); k < k1; k += 11) {
+      const seed = Math.sin(k * 12.9898 + t.i * 78.233) * 43758.5453
+      const r = seed - Math.floor(seed)
+      if (r < 0.45) continue
+      const side = r > 0.72 ? 1 : -1
+      ctx.moveTo(xs[k], ys[k] + dy)
+      ctx.lineTo(xs[k] + side * (half + 1.5 + r * 2.5), ys[k] + dy - 1.5 + r * 3)
+    }
+    ctx.strokeStyle = t.dark
+    ctx.lineWidth = 0.5
+    ctx.stroke()
+  }
+
   function update(y) {
     if (y === last) return
     last = y
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+    ctx.clearRect(0, 0, innerWidth, innerHeight)
     /* pendant que l'écran reste immobile, les fils restent accrochés aux pastilles */
-    svg.style.transform = `translateY(${Math.min(0, y - release).toFixed(1)}px)`
+    const dy = originY - y + Math.min(0, y - release)
+    const screenTop = -dy - 12
+    const screenBottom = screenTop + innerHeight + 24
+
     for (const t of threads) {
       const reach = clamp((y - t.from) / Math.max(1, t.arrive - t.from))
       const wrap = clamp((y - t.arrive) / Math.max(1, t.done - t.arrive))
+      t.img.style.opacity = smooth(0.25, 0.85, wrap).toFixed(3)
 
       /* la pointe descend puis tourne ; la queue la rattrape et rentre dans la casquette */
       const head = t.run * reach + (t.length - t.run) * Math.min(1, wrap / 0.6)
       const tail = t.length * smooth(0.5, 1, wrap)
-      const visible = Math.max(0, head - tail)
-      for (const p of [t.line, t.edge]) {
-        if (!p) continue
-        p.style.strokeDasharray = `${visible.toFixed(1)} ${(t.length + 20).toFixed(0)}`
-        p.style.strokeDashoffset = (-tail).toFixed(1)
-        p.style.opacity = visible > 0.5 ? 1 : 0
-      }
-      t.img.style.opacity = smooth(0.25, 0.85, wrap).toFixed(3)
+      if (head - tail < 1) continue
+
+      let k0 = Math.floor(tail / STEP)
+      let k1 = Math.min(t.xs.length - 1, Math.floor(head / STEP))
+      /* on ne peint que la partie à l'écran */
+      while (k0 < k1 && t.ys[k0] < screenTop) k0++
+      while (k1 > k0 && t.ys[k1] > screenBottom && k1 * STEP < t.run) k1--
+      if (k1 > k0) paint(t, k0, k1, dy)
     }
   }
 
-  return { layout, update }
+  return { layout, update, fit }
 }

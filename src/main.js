@@ -186,8 +186,9 @@ function start() {
 
   const sewing = REDUCED
     ? null
-    : createSewing({ svg: document.getElementById('sew'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS, holdRatio: 140 / 1161 })
+    : createSewing({ canvas: document.getElementById('sew'), measure: document.getElementById('sew-measure'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS, holdRatio: 140 / 1161 })
 
+  let sewnWidth = 0
   function resize() {
     W = pin.clientWidth
     Hh = pin.clientHeight
@@ -223,7 +224,10 @@ function start() {
     stage.x = W / 2
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
     threads.resize(W, Hh, stage.y)
-    sewing?.layout()
+    /* la barre d'adresse mobile change la hauteur à chaque scroll : seul un changement de largeur recale les fils */
+    if (W !== sewnWidth) sewing?.layout()
+    else sewing?.fit()
+    sewnWidth = W
     dirty = true
   }
 
