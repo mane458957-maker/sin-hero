@@ -16,6 +16,24 @@ const hero = document.getElementById('hero')
 const canvas = document.getElementById('stage')
 const params = new URLSearchParams(location.search)
 
+/* la grille ne dépend pas de la 3D */
+const grid = document.getElementById('grid')
+COLORS.forEach((c) => {
+  const a = document.createElement('a')
+  a.className = 'card'
+  a.href = c.href
+  const img = new Image()
+  img.src = `./caps/${c.id}.jpg`
+  img.alt = c.title
+  img.loading = 'lazy'
+  const name = document.createElement('span')
+  name.textContent = c.title
+  const price = document.createElement('small')
+  price.textContent = '€50,00'
+  a.append(img, name, price)
+  grid.append(a)
+})
+
 let renderer
 try {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
@@ -58,12 +76,6 @@ function start() {
   redKick.position.set(0, 0.2, -1.5)
   scene.add(key, rim, rim.target, redKick)
 
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(9, 48), new THREE.ShadowMaterial({ opacity: 0 }))
-  floor.rotation.x = -Math.PI / 2
-  floor.position.y = -0.17
-  floor.receiveShadow = true
-  scene.add(floor)
-
   /* ombre de contact : c'est elle qui pose l'objet sur le sol */
   const blobCanvas = document.createElement('canvas')
   blobCanvas.width = blobCanvas.height = 256
@@ -83,7 +95,7 @@ function start() {
   scene.add(contact)
 
   const black = new THREE.Color('#000000')
-  const paper = new THREE.Color('#ececea')
+  const paper = new THREE.Color('#ededed')
   const bg = new THREE.Color()
 
   /* trajectoire : caméra derrière la languette, recul, puis tour jusqu'au trois-quarts avant */
@@ -93,12 +105,19 @@ function start() {
     { p: 0.0, az: 180, el: 0, fit: 'logo', t: 0 },
     { p: 0.28, az: 180, el: 1, fit: 'logo', t: 0 },
     { p: 0.46, az: 172, el: 13, fit: 'back', t: 0.55 },
-    { p: 0.76, az: 78, el: 12, fit: 'cap', t: 1 },
-    { p: 1.0, az: 66, el: 10, fit: 'cap', t: 1 },
+    { p: 0.72, az: 58, el: 9, fit: 'cap', t: 1 },
+    { p: 1.0, az: 58, el: 9, fit: 'cap', t: 1 },
   ]
 
   let W = 1
   let Hh = 1
+  /* où se trouve la casquette dans les photos produit (toutes cadrées pareil) :
+     la 3D vient se poser exactement là avant de laisser place à la photo */
+  const CAP_X = 0.51
+  const CAP_Y = 0.512
+  const CAP_W = 0.6
+  const CAP_WORLD = 2.8
+  const shot = { x: 0, y: 0, w: 1 }
   const fitDistance = (w, h) => {
     const th = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
     return Math.max(h / 2 / th, w / 2 / (th * camera.aspect))
@@ -106,7 +125,7 @@ function start() {
   const fits = () => ({
     logo: fitDistance(morph.flatW * (W < Hh ? 1.16 : 1.9), morph.flatH * 2.6),
     back: fitDistance(W < Hh ? 2.45 : 2.9, 2.6),
-    cap: fitDistance(W < Hh ? 3.75 : 4.3, W < Hh ? 3.6 : 2.5),
+    cap: (CAP_WORLD * Hh) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * shot.w),
   })
 
   const look = new THREE.Vector3()
@@ -118,7 +137,6 @@ function start() {
   let colorIndex = 0
   let shadowReady = false
   let lockedColor = -1
-  const tint = new THREE.Color(COLORS[0].hex)
 
   function placeCamera(p) {
     const f = fits()
@@ -137,13 +155,8 @@ function start() {
     pos.y += py * 0.06 * dist * 0.12
     camera.position.copy(pos)
     camera.lookAt(look)
-    if (W < Hh) {
-      const end = seg(0.7, 0.9, p)
-      camera.setViewOffset(W, Hh, 0, Hh * 0.02 * end, W, Hh)
-    } else {
-      const side = seg(0.56, 0.76, p)
-      camera.setViewOffset(W, Hh, -W * 0.13 * side, 0, W, Hh)
-    }
+    const side = seg(0.5, 0.72, p)
+    camera.setViewOffset(W, Hh, -shot.x * side, -shot.y * side, W, Hh)
   }
 
   function setScene(p) {
@@ -173,10 +186,10 @@ function start() {
     cap.details.visible = bend > 0.97
     cap.details.scale.y = 1
 
-    floor.material.opacity = 0.16 * day
     contact.material.opacity = 0.5 * day
     bg.lerpColors(black, paper, day)
-    scene.background = bg
+    /* couleur d'effacement et pas scene.background : elle échappe au tone mapping, donc colle au fond des photos */
+    renderer.setClearColor(bg, 1)
 
     /* les coloris défilent sur la fin, sauf si le visiteur en a choisi un */
     const idx = lockedColor >= 0 ? lockedColor : Math.min(COLORS.length - 1, Math.floor(ramp(0.8, 0.985, p) * COLORS.length))
@@ -184,9 +197,6 @@ function start() {
       colorIndex = idx
       updateSwatches()
     }
-    const c = COLORS[colorIndex]
-    tint.lerp(new THREE.Color(c.hex), 0.16)
-    cap.setColor({ ...c, hex: '#' + tint.getHexString() })
     document.documentElement.style.setProperty('--day', day.toFixed(3))
   }
 
@@ -203,9 +213,23 @@ function start() {
       el.style.pointerEvents = o > 0.6 ? 'auto' : 'none'
     }
     bar.style.transform = `scaleX(${p.toFixed(4)})`
+    /* le logo du haut n'arrive que quand le grand logo a disparu : jamais deux SIN à l'écran */
+    brand.style.opacity = seg(0.1, 0.3, p).toFixed(3)
+    photos.style.opacity = seg(0.73, 0.77, p).toFixed(3)
   }
 
   const bar = document.getElementById('bar')
+  const brand = document.getElementById('brand')
+  const photos = document.getElementById('photos')
+  const cta = document.getElementById('cta')
+  const shots = COLORS.map((c, i) => {
+    const img = new Image()
+    img.alt = c.title
+    img.decoding = 'async'
+    img.src = `./caps/${c.id}.jpg`
+    photos.append(img)
+    return img
+  })
   const swatches = document.getElementById('swatches')
   const swatchName = document.getElementById('swatch-name')
   COLORS.forEach((c, i) => {
@@ -222,6 +246,8 @@ function start() {
   function updateSwatches() {
     ;[...swatches.children].forEach((b, i) => b.setAttribute('aria-pressed', i === colorIndex))
     swatchName.textContent = COLORS[colorIndex].name
+    shots.forEach((s, i) => s.classList.toggle('on', i === colorIndex))
+    cta.href = COLORS[colorIndex].href
   }
   updateSwatches()
 
@@ -244,6 +270,11 @@ function start() {
     renderer.setSize(W, Hh, false)
     camera.aspect = W / Hh
     camera.updateProjectionMatrix()
+    const box = photos.getBoundingClientRect()
+    const pin = hero.querySelector('.pin').getBoundingClientRect()
+    shot.x = box.left - pin.left + box.width * CAP_X - W / 2
+    shot.y = box.top - pin.top + box.height * CAP_Y - Hh / 2
+    shot.w = box.width * CAP_W
     dirty = true
   }
 
@@ -271,7 +302,6 @@ function start() {
 
   window.__seek = (p) => {
     forced = current = target = p
-    for (let i = 0; i < 40; i++) tint.lerp(new THREE.Color(COLORS[colorIndex].hex), 0.3)
     dirty = true
   }
 
@@ -305,12 +335,12 @@ function start() {
     px += (pointerX - px) * 0.05
     py += (pointerY - py) * 0.05
     const moving = prev !== current || Math.abs(pointerX - px) + Math.abs(pointerY - py) > 0.002
-    const fading = !tint.equals(new THREE.Color(COLORS[colorIndex].hex))
-    if (visible && (moving || dirty || fading)) {
+    if (visible && (moving || dirty)) {
       placeCamera(current)
       setScene(current)
       setCopy(current)
-      renderer.render(scene, camera)
+      /* une fois la photo posée, inutile de calculer la 3D derrière */
+      if (current < 0.78) renderer.render(scene, camera)
       if (document.visibilityState === 'visible' && raw < 200) adapt(raw)
       dirty = false
     }

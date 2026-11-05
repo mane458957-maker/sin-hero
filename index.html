@@ -17,7 +17,7 @@
           <a href="https://sinredparis.com/collections/casquette">Lookbook</a>
           <a href="https://sinredparis.com/pages/contact">Contact</a>
         </div>
-        <a class="brand" href="https://sinredparis.com/" aria-label="SIN">SIN</a>
+        <a class="brand" id="brand" href="https://sinredparis.com/" aria-label="SIN">SIN</a>
         <div class="tools"><span>EUR</span></div>
       </nav>
     </div>
@@ -27,6 +27,8 @@
         <div class="pin">
           <canvas id="stage" aria-hidden="true"></canvas>
           <img class="fallback" src="./cap-front.webp" alt="Casquette SIN Red navy, languette rouge" />
+
+          <div class="photos" id="photos"></div>
 
           <div class="copy c-hint" data-in="-1" data-out="0.05">Scroll<i></i></div>
 
@@ -48,7 +50,7 @@
               <span id="swatch-name"></span>
               <div id="swatches"></div>
             </div>
-            <a class="cta" href="https://sinredparis.com/collections/all">Voir la collection</a>
+            <a class="cta" id="cta" href="https://sinredparis.com/collections/all">Voir ce modèle</a>
           </div>
 
           <div class="progress" id="bar"></div>
@@ -60,7 +62,7 @@
           <h2>NOS SIGNATURE</h2>
           <a href="https://sinredparis.com/collections/all">View all</a>
         </header>
-        <p class="note">La suite de la page reste celle du site actuel.</p>
+        <div class="grid" id="grid"></div>
       </section>
     </main>
 
