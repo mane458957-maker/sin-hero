@@ -35,7 +35,9 @@ const T = { meltFrom: 0.05, meltTo: 0.26, fadeFrom: 0.36, fadeTo: 0.47, handFrom
 /* les 2 premières images de la vidéo sont floues : le film démarre à la 3e.
    Il passe ensuite vite sur les premières images, pour arriver tout de suite dans la rotation */
 const FIRST = 2
-const COLORS_AT = 426 / 921
+/* parts du scroll : animation, puis coloris, puis écran immobile pendant le départ des fils */
+const COLORS_AT = 426 / 1061
+const COLORS_END = 921 / 1061
 const RUSH = 22
 
 /* la grille ne dépend pas de l'animation */
@@ -44,15 +46,22 @@ COLORS.forEach((c) => {
   const a = document.createElement('a')
   a.className = 'card'
   a.href = c.href
+  /* la casquette blanche dessous, sa vraie couleur par-dessus : les photos ont le même cadrage */
+  const shot = document.createElement('div')
+  shot.className = 'shot'
+  const blank = new Image()
+  blank.src = './caps/white.jpg'
+  blank.alt = ''
   const img = new Image()
+  img.className = 'tint'
   img.src = `./caps/${c.id}.jpg`
   img.alt = c.title
-  img.loading = 'lazy'
+  shot.append(blank, img)
   const name = document.createElement('span')
   name.textContent = c.title
   const price = document.createElement('small')
   price.textContent = '€50,00'
-  a.append(img, name, price)
+  a.append(shot, name, price)
   grid.append(a)
 })
 
@@ -177,7 +186,7 @@ function start() {
 
   const sewing = REDUCED
     ? null
-    : createSewing({ svg: document.getElementById('sew'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS })
+    : createSewing({ svg: document.getElementById('sew'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS, holdRatio: 140 / 1161 })
 
   function resize() {
     W = pin.clientWidth
@@ -227,7 +236,7 @@ function start() {
     const r = hero.getBoundingClientRect()
     const s = clamp(-r.top / Math.max(1, r.height - innerHeight))
     /* la fin du hero prend plus de scroll : environ un demi-écran par coloris */
-    target = s < COLORS_AT ? (s / COLORS_AT) * 0.82 : 0.82 + ((s - COLORS_AT) / (1 - COLORS_AT)) * 0.18
+    target = s < COLORS_AT ? (s / COLORS_AT) * 0.82 : 0.82 + (Math.min(s, COLORS_END) - COLORS_AT) / (COLORS_END - COLORS_AT) * 0.18
     if (REDUCED) target = 1
     if (forced !== null) target = forced
   }
