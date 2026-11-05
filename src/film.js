@@ -30,16 +30,20 @@ export function createFilm(canvas, { count, path, window: size }) {
     const worker = async () => {
       while (queue.length) {
         const i = queue.shift()
-        try {
-          const res = await fetch(`${path}f_${pad(i)}.webp`)
-          blobs[i] = await res.blob()
-          if (Math.abs(i - wanted) < 3) request()
-        } catch {
-          /* une image manquante est remplacée par la plus proche */
+        /* le serveur peut refuser une image au milieu du lot : on réessaie, sinon la plus proche la remplace */
+        for (let attempt = 0; attempt < 3 && !blobs[i]; attempt++) {
+          try {
+            const res = await fetch(`${path}f_${pad(i)}.webp`)
+            if (res.ok) blobs[i] = await res.blob()
+            else await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+          } catch {
+            await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+          }
         }
+        if (blobs[i] && Math.abs(i - wanted) < 3) request()
       }
     }
-    await Promise.all(Array.from({ length: 6 }, worker))
+    await Promise.all(Array.from({ length: 4 }, worker))
   }
 
   function nearest(i) {
@@ -67,6 +71,9 @@ export function createFilm(canvas, { count, path, window: size }) {
         decoded.set(i, bmp)
         evict()
         paint()
+      })
+      .catch(() => {
+        blobs[i] = undefined
       })
       .finally(() => pending.delete(i))
   }
