@@ -21,7 +21,7 @@ const params = new URLSearchParams(location.search)
 
 /* repères mesurés sur la vidéo (fractions du cadre) et sur les photos produit */
 const FRAMES = 107
-const STRAP = { x: 0.486, y: 0.653, w: 0.229 }
+const STRAP = { x: 0.486, y: 0.658, w: 0.234 }
 const FILM_END = { x: 0.4125, y: 0.5115 }
 const PHOTO = { x: 0.459, y: 0.5115 }
 const CAP_TOP = 0.325
