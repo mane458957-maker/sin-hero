@@ -21,14 +21,14 @@ const params = new URLSearchParams(location.search)
 
 /* repères mesurés sur la vidéo (fractions du cadre) et sur les photos produit */
 const FRAMES = 107
-const STRAP = { x: 0.48, y: 0.652, w: 0.238 }
+const STRAP = { x: 0.486, y: 0.653, w: 0.229 }
 const FILM_END = { x: 0.4125, y: 0.5115 }
 const PHOTO = { x: 0.459, y: 0.5115 }
 const CAP_TOP = 0.325
 const CAP_SPAN = 0.37
 
 /* scénario : fractions du scroll */
-const T = { meltFrom: 0.05, meltTo: 0.26, openFrom: 0.34, openTo: 0.43, handFrom: 0.38, handTo: 0.44, moveFrom: 0.42, moveTo: 0.5, turnFrom: 0.42, rushTo: 0.47, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
+const T = { meltFrom: 0.05, meltTo: 0.26, realFrom: 0.3, realTo: 0.32, handFrom: 0.33, handTo: 0.39, fadeFrom: 0.42, fadeTo: 0.51, moveFrom: 0.51, moveTo: 0.59, turnFrom: 0.51, rushTo: 0.55, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
 
 /* les 2 premières images de la vidéo sont floues : le film démarre à la 3e.
    Il passe ensuite vite sur les premières images, pour arriver tout de suite dans la rotation */
@@ -76,6 +76,7 @@ function start() {
   const filmBox = document.getElementById('filmbox')
   const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 16 : 48 })
   const curtain = document.getElementById('curtain')
+  const realStrap = document.getElementById('realstrap')
   const photos = document.getElementById('photos')
   const brand = document.getElementById('brand')
   const bar = document.getElementById('bar')
@@ -116,12 +117,14 @@ function start() {
     /* le logo du haut n'arrive que quand le grand logo a disparu : jamais deux SIN à l'écran */
     brand.style.opacity = seg(0.1, 0.3, p).toFixed(3)
 
-    /* la bande rouge ne bouge pas : la lumière révèle la casquette autour d'elle, puis elle s'efface
-       au profit de la languette de la vidéo, placée exactement dessous */
+    /* tout se joue en fondus, sans que rien ne bouge : la bande rouge s'efface sur la vraie languette,
+       seule sur le noir, puis la casquette et le décor apparaissent derrière elle */
     canvas.style.opacity = (1 - seg(T.handFrom, T.handTo, p)).toFixed(3)
-    const open = seg(T.openFrom, T.openTo, p)
-    curtain.style.setProperty('--r', `${(open * Math.hypot(W, Hh) * 1.25).toFixed(0)}px`)
-    curtain.style.display = open >= 1 ? 'none' : ''
+    const fade = seg(T.fadeFrom, T.fadeTo, p)
+    realStrap.style.opacity = seg(T.realFrom, T.realTo, p).toFixed(3)
+    realStrap.style.display = fade >= 1 ? 'none' : ''
+    curtain.style.opacity = (1 - fade).toFixed(3)
+    curtain.style.display = fade >= 1 ? 'none' : ''
 
     film.seek(FIRST + ramp(T.turnFrom, T.rushTo, p) * (RUSH - FIRST) + ramp(T.rushTo, T.turnTo, p) * (FRAMES - 1 - RUSH))
 
@@ -131,6 +134,7 @@ function start() {
     const fx = (stage.x - strap.x) * (1 - move) + shrink.x * k
     const fy = (stage.y - strap.y) * (1 - move) + shrink.y * k
     filmBox.style.transform = `translate3d(${fx.toFixed(1)}px,${fy.toFixed(1)}px,0) scale(${Math.pow(stage.zoom, 1 - move).toFixed(4)})`
+    realStrap.style.transform = filmBox.style.transform
     photos.style.opacity = seg(T.photoFrom, T.photoTo, p).toFixed(3)
     /* photo posée : le film disparaît, rien ne transparaît quand on change de coloris */
     filmBox.style.visibility = p >= T.photoTo ? 'hidden' : 'visible'
@@ -190,7 +194,7 @@ function start() {
     strap.x = f.left - root.left + f.width * STRAP.x
     strap.y = f.top - root.top + f.height * STRAP.y
     strap.w = f.width * STRAP.w
-    filmBox.style.transformOrigin = `${STRAP.x * 100}% ${STRAP.y * 100}%`
+    filmBox.style.transformOrigin = realStrap.style.transformOrigin = `${STRAP.x * 100}% ${STRAP.y * 100}%`
 
     /* même hauteur de casquette dans la vidéo et les photos : il ne reste qu'à la glisser en place */
     shrink.x = (PHOTO.x - FILM_END.x) * ph.width + ph.left - f.left
@@ -206,8 +210,6 @@ function start() {
     stage.w = size * STRAP.w
     stage.x = W / 2
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
-    curtain.style.setProperty('--x', `${stage.x.toFixed(0)}px`)
-    curtain.style.setProperty('--y', `${stage.y.toFixed(0)}px`)
     dirty = true
   }
 
