@@ -4,7 +4,7 @@
 const pad = (i) => String(i + 1).padStart(4, '0')
 
 export function createFilm(canvas, { count, path, window: size }) {
-  const ctx = canvas.getContext('2d', { alpha: false })
+  const ctx = canvas.getContext('2d')
   const blobs = new Array(count)
   const decoded = new Map()
   const pending = new Set()
@@ -89,6 +89,7 @@ export function createFilm(canvas, { count, path, window: size }) {
   function paint() {
     const i = nearest(wanted)
     if (i < 0 || i === shown) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.drawImage(decoded.get(i), 0, 0, canvas.width, canvas.height)
     shown = i
   }

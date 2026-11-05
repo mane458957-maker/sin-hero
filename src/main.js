@@ -28,6 +28,7 @@ const STRAP = { x: 0.486, y: 0.658, w: 0.234 }
 const FILM_END = { x: 0.4125, y: 0.5115 }
 const PHOTO = { x: 0.459, y: 0.5115 }
 const CAP_TOP = 0.325
+const PHOTO_CAP = 0.6
 const CAP_SPAN = 0.37
 
 /* scénario : fractions du scroll */
@@ -89,6 +90,23 @@ function start() {
   const filmBox = document.getElementById('filmbox')
   const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 16 : 48 })
   const curtain = document.getElementById('curtain')
+  /* deux demi-anneaux : celui de derrière sous la vidéo, celui de devant au-dessus */
+  const ORBIT_TEXT = 'SIN RED · PARIS · '.repeat(3)
+  const orbits = [...document.querySelectorAll('.orbit')]
+  orbits.forEach((o) => {
+    const ring = document.createElement('div')
+    ring.className = 'ring'
+    /* vu de l'autre côté, l'anneau défile à l'envers : on inverse les lettres pour qu'il reste lisible */
+    const letters = [...ORBIT_TEXT]
+    if (o.classList.contains('orbit-back')) letters.reverse()
+    letters.forEach((ch, i) => {
+      const s = document.createElement('span')
+      s.textContent = ch
+      s.style.setProperty('--a', `${(i / ORBIT_TEXT.length) * 360}deg`)
+      ring.append(s)
+    })
+    o.append(ring)
+  })
   const rain = createRain(document.getElementById('rain'), { colors: COLORS })
   const threads = createThreads(document.getElementById('threads'), { maxRatio: COARSE ? 1.25 : 1.5 })
   const photos = document.getElementById('photos')
@@ -146,6 +164,15 @@ function start() {
     const fy = (stage.y - strap.y) * (1 - move) + shrink.y * k
     filmBox.style.transform = `translate3d(${fx.toFixed(1)}px,${fy.toFixed(1)}px,0) scale(${Math.pow(stage.zoom, 1 - move).toFixed(4)})`
     photos.style.opacity = seg(T.photoFrom, T.photoTo, p).toFixed(3)
+
+    /* l'anneau de texte tourne autour de la casquette, à contresens de sa rotation */
+    const orbitLevel = seg(0.54, 0.6, p) * (1 - seg(0.72, 0.76, p))
+    const spin = `rotateX(-13deg) rotateZ(-5deg) rotateY(${(-40 - ramp(0.54, 0.76, p) * 300).toFixed(1)}deg)`
+    orbits.forEach((o) => {
+      o.style.opacity = orbitLevel.toFixed(3)
+      o.style.visibility = orbitLevel > 0 ? 'visible' : 'hidden'
+      o.firstChild.style.transform = spin
+    })
     /* photo posée : le film disparaît, rien ne transparaît quand on change de coloris */
     filmBox.style.visibility = p >= T.photoTo ? 'hidden' : 'visible'
 
@@ -217,6 +244,15 @@ function start() {
 
     logoPx = Math.min(W * (W < Hh ? 0.86 : 0.52), Hh * 0.9)
 
+    /* l'anneau est centré sur la casquette, à sa place définitive */
+    const radius = ph.width * PHOTO_CAP * 0.74
+    orbits.forEach((o) => {
+      o.style.left = `${(f.left - root.left + f.width * 0.47).toFixed(0)}px`
+      o.style.top = `${(f.top - root.top + f.height * 0.48).toFixed(0)}px`
+      o.style.setProperty('--r', `${radius.toFixed(0)}px`)
+      o.style.setProperty('--fs', `${(((Math.PI * 2 * radius) / ORBIT_TEXT.length) * 1.32).toFixed(1)}px`)
+    })
+
     /* taille de révélation : toute la casquette tient entre l'en-tête et le bas de l'écran */
     const room = Hh - 106
     /* la vidéo fait 960 px : zoom léger, sinon elle devient floue */
@@ -272,9 +308,9 @@ function start() {
 
     /* les fils vivent dès l'ouverture, sans attendre le scroll, et se resserrent quand le logo fond */
     if (visible && current < T.fadeTo) {
-      threads.draw(now / 1000, seg(T.meltFrom, T.meltTo + 0.04, current), seg(T.meltTo - 0.02, T.meltTo + 0.06, current) * (1 - seg(T.fadeFrom - 0.04, T.fadeFrom + 0.02, current)))
-      /* la pluie continue pendant que le logo fond, et s'efface une fois la bande rouge formée */
-      rain.draw(now / 1000, 1 - seg(T.meltTo - 0.02, T.meltTo + 0.06, current))
+      threads.draw(now / 1000, seg(T.meltFrom, T.meltTo + 0.04, current), seg(0.1, 0.2, current) * (1 - seg(T.fadeFrom - 0.04, T.fadeFrom + 0.02, current)))
+      /* la pluie part dès que le logo commence à descendre */
+      rain.draw(now / 1000, 1 - seg(T.meltFrom, T.meltFrom + 0.08, current))
     }
 
     /* le trait vit même quand le visiteur ne scrolle pas */
