@@ -28,7 +28,7 @@ const CAP_TOP = 0.325
 const CAP_SPAN = 0.37
 
 /* scénario : fractions du scroll */
-const T = { meltFrom: 0.05, meltTo: 0.26, realFrom: 0.3, realTo: 0.32, handFrom: 0.33, handTo: 0.39, fadeFrom: 0.42, fadeTo: 0.51, moveFrom: 0.51, moveTo: 0.59, turnFrom: 0.51, rushTo: 0.55, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
+const T = { meltFrom: 0.05, meltTo: 0.26, fadeFrom: 0.36, fadeTo: 0.47, handFrom: 0.38, handTo: 0.47, moveFrom: 0.47, moveTo: 0.56, turnFrom: 0.47, rushTo: 0.51, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
 
 /* les 2 premières images de la vidéo sont floues : le film démarre à la 3e.
    Il passe ensuite vite sur les premières images, pour arriver tout de suite dans la rotation */
@@ -76,7 +76,6 @@ function start() {
   const filmBox = document.getElementById('filmbox')
   const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 16 : 48 })
   const curtain = document.getElementById('curtain')
-  const realStrap = document.getElementById('realstrap')
   const photos = document.getElementById('photos')
   const brand = document.getElementById('brand')
   const bar = document.getElementById('bar')
@@ -117,12 +116,9 @@ function start() {
     /* le logo du haut n'arrive que quand le grand logo a disparu : jamais deux SIN à l'écran */
     brand.style.opacity = seg(0.1, 0.3, p).toFixed(3)
 
-    /* tout se joue en fondus, sans que rien ne bouge : la bande rouge s'efface sur la vraie languette,
-       seule sur le noir, puis la casquette et le décor apparaissent derrière elle */
+    /* un seul fondu : le trait rouge s'efface pendant que tout le second plan apparaît d'un bloc */
     canvas.style.opacity = (1 - seg(T.handFrom, T.handTo, p)).toFixed(3)
     const fade = seg(T.fadeFrom, T.fadeTo, p)
-    realStrap.style.opacity = seg(T.realFrom, T.realTo, p).toFixed(3)
-    realStrap.style.display = fade >= 1 ? 'none' : ''
     curtain.style.opacity = (1 - fade).toFixed(3)
     curtain.style.display = fade >= 1 ? 'none' : ''
 
@@ -134,7 +130,6 @@ function start() {
     const fx = (stage.x - strap.x) * (1 - move) + shrink.x * k
     const fy = (stage.y - strap.y) * (1 - move) + shrink.y * k
     filmBox.style.transform = `translate3d(${fx.toFixed(1)}px,${fy.toFixed(1)}px,0) scale(${Math.pow(stage.zoom, 1 - move).toFixed(4)})`
-    realStrap.style.transform = filmBox.style.transform
     photos.style.opacity = seg(T.photoFrom, T.photoTo, p).toFixed(3)
     /* photo posée : le film disparaît, rien ne transparaît quand on change de coloris */
     filmBox.style.visibility = p >= T.photoTo ? 'hidden' : 'visible'
@@ -194,7 +189,7 @@ function start() {
     strap.x = f.left - root.left + f.width * STRAP.x
     strap.y = f.top - root.top + f.height * STRAP.y
     strap.w = f.width * STRAP.w
-    filmBox.style.transformOrigin = realStrap.style.transformOrigin = `${STRAP.x * 100}% ${STRAP.y * 100}%`
+    filmBox.style.transformOrigin = `${STRAP.x * 100}% ${STRAP.y * 100}%`
 
     /* même hauteur de casquette dans la vidéo et les photos : il ne reste qu'à la glisser en place */
     shrink.x = (PHOTO.x - FILM_END.x) * ph.width + ph.left - f.left
