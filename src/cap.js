@@ -2,7 +2,7 @@
 export const RX = 0.9
 export const RZ = 1.03
 export const STRAP_Y = 0.075
-export const STRAP_H = 0.17
+export const STRAP_H = 0.353
 export const STRAP_A = (53 * Math.PI) / 180
 export const STRAP_R = 0.988
 

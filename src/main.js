@@ -20,13 +20,14 @@ const canvas = document.getElementById('stage')
 const params = new URLSearchParams(location.search)
 
 /* repères mesurés sur la vidéo (fractions du cadre) et sur les photos produit */
-const FRAMES = 243
-const STRAP = { x: 0.48, y: 0.8, w: 0.3 }
-const FILM_END = { x: 0.45, y: 0.526, w: 0.895 }
-const PHOTO = { x: 0.459, y: 0.512, w: 0.604 }
+const FRAMES = 107
+const STRAP = { x: 0.48, y: 0.652, w: 0.238 }
+const FILM_END = { x: 0.4125, y: 0.5115 }
+const PHOTO = { x: 0.459, y: 0.5115 }
+const STRAP_RATIO = 310 / 1074
 
 /* scénario : fractions du scroll */
-const T = { meltFrom: 0.05, meltTo: 0.3, bendFrom: 0.2, bendTo: 0.42, openFrom: 0.34, openTo: 0.5, turnFrom: 0.48, turnTo: 0.74, shrinkFrom: 0.7, shrinkTo: 0.77, photoFrom: 0.75, photoTo: 0.785 }
+const T = { meltFrom: 0.05, meltTo: 0.22, swapFrom: 0.2, swapTo: 0.27, moveFrom: 0.33, moveTo: 0.5, openFrom: 0.36, openTo: 0.52, handFrom: 0.5, handTo: 0.54, turnFrom: 0.53, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
 
 /* la grille ne dépend pas de l'animation */
 const grid = document.getElementById('grid')
@@ -69,6 +70,7 @@ function start() {
   const filmBox = document.getElementById('filmbox')
   const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 24 : 60 })
   const curtain = document.getElementById('curtain')
+  const strapImg = document.getElementById('strap')
   const photos = document.getElementById('photos')
   const brand = document.getElementById('brand')
   const bar = document.getElementById('bar')
@@ -79,20 +81,17 @@ function start() {
   let W = 1
   let Hh = 1
   const strap = { x: 0, y: 0, w: 1 }
-  const shrink = { s: 1, x: 0, y: 0 }
+  const shrink = { x: 0, y: 0 }
+  let logoPx = 1
 
   const look = new THREE.Vector3(0, STRAP_Y, -RZ)
   const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
   const pxDistance = (world, px) => (world * Hh) / (2 * tanHalf * px)
 
-  function placeCamera(p) {
-    const t = seg(T.bendFrom, T.bendTo, p)
-    const logoPx = Math.min(W * (W < Hh ? 0.86 : 0.52), Hh * 0.9)
-    const dist = mix(pxDistance(morph.flatW, logoPx), pxDistance(morph.flatW, strap.w), t)
-    const el = THREE.MathUtils.degToRad(mix(0, 22, t))
-    camera.position.set(0, Math.sin(el) * dist, -Math.cos(el) * dist).add(look)
+  function placeCamera() {
+    const dist = pxDistance(morph.flatW, logoPx)
+    camera.position.set(0, STRAP_Y, -RZ - dist)
     camera.lookAt(look)
-    camera.setViewOffset(W, Hh, -(strap.x - W / 2) * t, -(strap.y - Hh / 2) * t, W, Hh)
   }
 
   const blocks = [...document.querySelectorAll('[data-in]')].map((el) => ({ el, a: +el.dataset.in, b: +el.dataset.out }))
@@ -112,17 +111,24 @@ function start() {
     const open = seg(T.openFrom, T.openTo, p)
     curtain.style.setProperty('--r', `${(open * Math.hypot(W, Hh) * 1.25).toFixed(0)}px`)
     curtain.style.display = open >= 1 ? 'none' : ''
-    canvas.style.opacity = (1 - seg(T.openFrom + 0.06, T.openTo - 0.03, p)).toFixed(3)
+
+    /* la bande 3D laisse place à la vraie languette, qui recule jusqu'à sa place sur la casquette */
+    canvas.style.opacity = (1 - seg(T.swapFrom, T.swapTo, p)).toFixed(3)
+    const move = seg(T.moveFrom, T.moveTo, p)
+    const sx = (strap.x - W / 2) * move
+    const sy = (strap.y - Hh / 2) * move
+    strapImg.style.transform = `translate3d(${sx.toFixed(1)}px,${sy.toFixed(1)}px,0) scale(${mix(1, strap.w / logoPx, move).toFixed(4)})`
+    strapImg.style.opacity = (seg(T.swapFrom, T.swapTo, p) * (1 - seg(T.handFrom, T.handTo, p))).toFixed(3)
 
     film.seek(ramp(T.turnFrom, T.turnTo, p) * (FRAMES - 1))
     const k = seg(T.shrinkFrom, T.shrinkTo, p)
-    filmBox.style.transform = `translate3d(${(shrink.x * k).toFixed(1)}px,${(shrink.y * k).toFixed(1)}px,0) scale(${mix(1, shrink.s, k).toFixed(4)})`
+    filmBox.style.transform = `translate3d(${(shrink.x * k).toFixed(1)}px,${(shrink.y * k).toFixed(1)}px,0)`
     photos.style.opacity = seg(T.photoFrom, T.photoTo, p).toFixed(3)
     /* photo posée : le film disparaît, rien ne transparaît quand on change de coloris */
     filmBox.style.visibility = p >= T.photoTo ? 'hidden' : 'visible'
 
     /* les coloris défilent sur la fin, sauf si le visiteur en a choisi un */
-    const idx = lockedColor >= 0 ? lockedColor : Math.min(COLORS.length - 1, Math.floor(ramp(0.81, 0.985, p) * COLORS.length))
+    const idx = lockedColor >= 0 ? lockedColor : Math.min(COLORS.length - 1, Math.floor(ramp(0.82, 0.985, p) * COLORS.length))
     if (idx !== colorIndex) {
       colorIndex = idx
       updateSwatches()
@@ -179,12 +185,15 @@ function start() {
     curtain.style.setProperty('--x', `${strap.x.toFixed(0)}px`)
     curtain.style.setProperty('--y', `${strap.y.toFixed(0)}px`)
 
-    /* le film recule pour que la casquette prenne la taille et la place de la photo */
-    shrink.s = (ph.width * PHOTO.w) / (f.width * FILM_END.w)
-    const cx = f.left + f.width / 2
-    const cy = f.top + f.height / 2
-    shrink.x = ph.left + ph.width * PHOTO.x - (cx + (FILM_END.x - 0.5) * f.width * shrink.s)
-    shrink.y = ph.top + ph.height * PHOTO.y - (cy + (FILM_END.y - 0.5) * f.height * shrink.s)
+    /* même hauteur de casquette dans la vidéo et les photos : il ne reste qu'à la glisser en place */
+    shrink.x = (PHOTO.x - FILM_END.x) * ph.width + ph.left - f.left
+    shrink.y = (PHOTO.y - FILM_END.y) * ph.height + ph.top - f.top
+
+    logoPx = Math.min(W * (W < Hh ? 0.86 : 0.52), Hh * 0.9)
+    strapImg.style.width = `${logoPx.toFixed(0)}px`
+    strapImg.style.left = `${(W / 2 - logoPx / 2).toFixed(0)}px`
+    strapImg.style.top = `${(Hh / 2 - (logoPx * STRAP_RATIO) / 2).toFixed(0)}px`
+    placeCamera()
     dirty = true
   }
 
@@ -222,12 +231,11 @@ function start() {
     if (Math.abs(target - current) < 0.00005) current = target
     if (visible && (prev !== current || dirty)) {
       setPage(current)
-      /* passé l'ouverture, seule la vidéo travaille */
-      if (current < T.openTo) {
-        morph.uniforms.uMelt.value = seg(T.meltFrom, T.meltTo, current)
-        morph.uniforms.uBend.value = seg(T.bendFrom, T.bendTo, current)
-        morph.uniforms.uDepth.value = mix(0.07, 0.014, seg(T.meltFrom, T.meltTo, current))
-        placeCamera(current)
+      /* une fois la vraie languette à l'écran, la 3D ne calcule plus rien */
+      if (current < T.swapTo) {
+        const melt = seg(T.meltFrom, T.meltTo, current)
+        morph.uniforms.uMelt.value = melt
+        morph.uniforms.uDepth.value = mix(0.07, 0.02, melt)
         renderer.render(scene, camera)
       }
       dirty = false
