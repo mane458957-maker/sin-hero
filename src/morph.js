@@ -129,6 +129,7 @@ export function buildMorph({ fieldWidth = 2048, envMap }) {
     uFlatH: { value: flatH },
     uDepth: { value: 0.07 },
     uGlow: { value: 1 },
+    uTime: { value: 0 },
   }
 
   const mat = new THREE.MeshPhysicalMaterial({
@@ -173,8 +174,15 @@ export function buildMorph({ fieldWidth = 2048, envMap }) {
       .replace(
         '#include <common>',
         `#include <common>
-        uniform sampler2D uField; uniform float uAspect, uMelt, uGlow;
+        uniform sampler2D uField; uniform float uAspect, uMelt, uGlow, uTime;
         varying vec2 vPlate; varying vec3 vT; varying vec3 vB;
+        float hash2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise2(vec2 p){
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3. - 2. * f);
+          return mix(mix(hash2(i), hash2(i + vec2(1., 0.)), f.x), mix(hash2(i + vec2(0., 1.)), hash2(i + vec2(1., 1.)), f.x), f.y);
+        }
+        float fbm2(vec2 p){ return .55 * noise2(p) + .3 * noise2(p * 2.03) + .15 * noise2(p * 4.1); }
         float fieldAt(vec2 p){
           float d = texture2D(uField, p).r;
           vec2 q = abs((p - .5) * vec2(uAspect, 1.)) - vec2(uAspect * .5, .5);
@@ -182,6 +190,9 @@ export function buildMorph({ fieldWidth = 2048, envMap }) {
           /* la fonte part du centre et gagne les bords */
           float t = clamp(uMelt * 1.7 - abs(p.x - .5) * 1.4, 0., 1.);
           t = t * t * (3. - 2. * t);
+          /* le bord du trait respire très légèrement, comme un tissu */
+          float tissue = smoothstep(.55, 1., uMelt);
+          box += noise2(vec2(p.x * 7.5, uTime * .5)) * .03 * tissue;
           return mix(d, box, t);
         }`
       )
@@ -204,7 +215,21 @@ export function buildMorph({ fieldWidth = 2048, envMap }) {
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-        totalEmissiveRadiance += vec3(.6, .004, .009) * uGlow;`
+        {
+          /* sangle vivante : tissage de la vraie languette et reflet qui glisse le long du trait */
+          vec3 flatRed = vec3(.6, .004, .009);
+          vec2 q = vPlate * vec2(620., 132.);
+          float row = floor(q.y / 3.14159);
+          float warp = .5 + .5 * sin(q.x + mod(row, 2.) * 3.14159);
+          float weft = .5 + .5 * sin(q.y);
+          float cloth = .76 + .13 * warp * weft + .3 * (fbm2(vPlate * vec2(6., 1.2) + uTime * .1) - .5);
+          /* deux rangs de couture, comme sur la languette */
+          float seam = smoothstep(.022, .008, abs(abs(vPlate.y - .5) - .39)) * step(.3, fract(vPlate.x * 58.));
+          cloth -= .2 * seam;
+          float sweep = exp(-pow((vPlate.x - (fract(uTime * .13) * 1.5 - .25)) / .19, 2.));
+          vec3 woven = flatRed * pow(cloth, 2.2) * 1.7 + vec3(.3, .03, .026) * sweep * (.6 + .4 * warp);
+          totalEmissiveRadiance += mix(flatRed, woven, smoothstep(.55, 1., uMelt)) * uGlow;
+        }`
       )
   }
 

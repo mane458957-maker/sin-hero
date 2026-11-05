@@ -240,7 +240,10 @@ function start() {
     const prev = current
     current += (target - current) * (1 - Math.exp(-dt / (COARSE ? 40 : 60)))
     if (Math.abs(target - current) < 0.00005) current = target
-    if (visible && (prev !== current || dirty)) {
+    /* le trait vit même quand le visiteur ne scrolle pas */
+    const alive = current > T.meltFrom && current < T.handTo
+    morph.uniforms.uTime.value = now / 1000
+    if (visible && (prev !== current || dirty || alive)) {
       setPage(current)
       /* une fois la bande effacée, la 3D ne calcule plus rien */
       if (current < T.handTo) {
