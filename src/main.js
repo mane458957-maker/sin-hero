@@ -24,12 +24,16 @@ const FRAMES = 107
 const STRAP = { x: 0.48, y: 0.652, w: 0.238 }
 const FILM_END = { x: 0.4125, y: 0.5115 }
 const PHOTO = { x: 0.459, y: 0.5115 }
-const STRAP_RATIO = 310 / 1074
 const CAP_TOP = 0.325
 const CAP_SPAN = 0.37
 
 /* scénario : fractions du scroll */
-const T = { meltFrom: 0.05, meltTo: 0.24, swapFrom: 0.23, swapTo: 0.29, openFrom: 0.34, openTo: 0.5, handFrom: 0.45, handTo: 0.51, moveFrom: 0.51, moveTo: 0.65, turnFrom: 0.51, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
+const T = { meltFrom: 0.05, meltTo: 0.26, openFrom: 0.34, openTo: 0.43, handFrom: 0.38, handTo: 0.44, moveFrom: 0.42, moveTo: 0.5, turnFrom: 0.42, rushTo: 0.47, turnTo: 0.76, shrinkFrom: 0.73, shrinkTo: 0.79, photoFrom: 0.772, photoTo: 0.792 }
+
+/* les 2 premières images de la vidéo sont floues : le film démarre à la 3e.
+   Il passe ensuite vite sur les premières images, pour arriver tout de suite dans la rotation */
+const FIRST = 2
+const RUSH = 22
 
 /* la grille ne dépend pas de l'animation */
 const grid = document.getElementById('grid')
@@ -72,7 +76,6 @@ function start() {
   const filmBox = document.getElementById('filmbox')
   const film = createFilm(document.getElementById('film'), { count: FRAMES, path: './film/', window: COARSE ? 16 : 48 })
   const curtain = document.getElementById('curtain')
-  const strapImg = document.getElementById('strap')
   const photos = document.getElementById('photos')
   const brand = document.getElementById('brand')
   const bar = document.getElementById('bar')
@@ -113,17 +116,14 @@ function start() {
     /* le logo du haut n'arrive que quand le grand logo a disparu : jamais deux SIN à l'écran */
     brand.style.opacity = seg(0.1, 0.3, p).toFixed(3)
 
-    /* la bande 3D laisse place à la vraie languette */
-    canvas.style.opacity = (1 - seg(T.swapFrom, T.swapTo, p)).toFixed(3)
-
-    /* la languette ne bouge pas : la lumière révèle la casquette autour d'elle, puis elle s'efface
-       au profit de celle de la vidéo, placée exactement dessous */
-    strapImg.style.opacity = (seg(T.swapFrom, T.swapTo, p) * (1 - seg(T.handFrom, T.handTo, p))).toFixed(3)
+    /* la bande rouge ne bouge pas : la lumière révèle la casquette autour d'elle, puis elle s'efface
+       au profit de la languette de la vidéo, placée exactement dessous */
+    canvas.style.opacity = (1 - seg(T.handFrom, T.handTo, p)).toFixed(3)
     const open = seg(T.openFrom, T.openTo, p)
     curtain.style.setProperty('--r', `${(open * Math.hypot(W, Hh) * 1.25).toFixed(0)}px`)
     curtain.style.display = open >= 1 ? 'none' : ''
 
-    film.seek(ramp(T.turnFrom, T.turnTo, p) * (FRAMES - 1))
+    film.seek(FIRST + ramp(T.turnFrom, T.rushTo, p) * (RUSH - FIRST) + ramp(T.rushTo, T.turnTo, p) * (FRAMES - 1 - RUSH))
 
     /* seul le film recule, une fois le relais passé, pendant que la casquette tourne */
     const move = seg(T.moveFrom, T.moveTo, p)
@@ -200,15 +200,12 @@ function start() {
 
     /* taille de révélation : toute la casquette tient entre l'en-tête et le bas de l'écran */
     const room = Hh - 106
-    /* la vidéo fait 960 px : pas de zoom sur ordinateur, à peine sur téléphone, sinon elle devient floue */
-    const size = Math.min((room / CAP_SPAN) * 0.92, W < Hh ? W * 1.7 : f.width)
+    /* la vidéo fait 960 px : zoom léger, sinon elle devient floue */
+    const size = Math.min((room / CAP_SPAN) * 0.92, W < Hh ? W * 1.7 : f.width * 1.3)
     stage.zoom = size / f.width
     stage.w = size * STRAP.w
     stage.x = W / 2
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
-    strapImg.style.width = `${stage.w.toFixed(0)}px`
-    strapImg.style.left = `${(stage.x - stage.w / 2).toFixed(0)}px`
-    strapImg.style.top = `${(stage.y - (stage.w * STRAP_RATIO) / 2).toFixed(0)}px`
     curtain.style.setProperty('--x', `${stage.x.toFixed(0)}px`)
     curtain.style.setProperty('--y', `${stage.y.toFixed(0)}px`)
     dirty = true
@@ -248,8 +245,8 @@ function start() {
     if (Math.abs(target - current) < 0.00005) current = target
     if (visible && (prev !== current || dirty)) {
       setPage(current)
-      /* une fois la vraie languette à l'écran, la 3D ne calcule plus rien */
-      if (current < T.swapTo) {
+      /* une fois la bande effacée, la 3D ne calcule plus rien */
+      if (current < T.handTo) {
         const melt = seg(T.meltFrom, T.meltTo, current)
         morph.uniforms.uMelt.value = melt
         morph.uniforms.uDepth.value = mix(0.07, 0.02, melt)
