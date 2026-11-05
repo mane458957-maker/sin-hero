@@ -69,6 +69,10 @@ a { color: inherit; text-decoration: none; }
 .photos img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0s .45s; }
 .photos img.on { z-index: 1; opacity: 1; transition: opacity .45s ease; }
 
+/* Fils de couleur : de la pastille à la casquette */
+main { position: relative; }
+#sew { position: absolute; left: 0; z-index: 6; pointer-events: none; overflow: visible; }
+
 /* Suite de la page */
 .signature { background: #fff; color: var(--ink); padding: 56px clamp(16px, 4vw, 30px) 80px; }
 .signature header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 26px; }
@@ -76,8 +80,7 @@ a { color: inherit; text-decoration: none; }
 .signature header a { font-size: 13px; }
 .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px 14px; }
 .card { display: block; font-size: 13px; font-weight: 600; }
-.card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; margin-bottom: 10px; background: #ededed; transition: opacity .25s; }
-.card:hover img { opacity: .82; }
+.card img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; margin-bottom: 10px; background: #ededed; }
 .card small { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; color: #555; }
 
 @media (max-aspect-ratio: 85/100), (max-width: 760px) {

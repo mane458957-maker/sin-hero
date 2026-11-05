@@ -5,6 +5,7 @@ import { COLORS, RZ, STRAP_Y } from './cap.js'
 import { buildMorph } from './morph.js'
 import { createFilm } from './film.js'
 import { createThreads } from './threads.js'
+import { createSewing } from './sewing.js'
 import './style.css'
 
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
@@ -174,6 +175,10 @@ function start() {
   }
   updateSwatches()
 
+  const sewing = REDUCED
+    ? null
+    : createSewing({ svg: document.getElementById('sew'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS })
+
   function resize() {
     W = pin.clientWidth
     Hh = pin.clientHeight
@@ -209,6 +214,7 @@ function start() {
     stage.x = W / 2
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
     threads.resize(W, Hh, stage.y)
+    sewing?.layout()
     dirty = true
   }
 
@@ -246,6 +252,8 @@ function start() {
     const prev = current
     current += (target - current) * (1 - Math.exp(-dt / (COARSE ? 40 : 60)))
     if (Math.abs(target - current) < 0.00005) current = target
+    sewing?.update(scrollY)
+
     /* les fils vivent dès l'ouverture, sans attendre le scroll, et se resserrent quand le logo fond */
     if (visible && current < T.fadeTo) threads.draw(now / 1000, seg(T.meltFrom, T.meltTo + 0.04, current), 1 - seg(T.fadeFrom - 0.04, T.fadeFrom + 0.02, current))
 
@@ -268,6 +276,9 @@ function start() {
   }
 
   resize()
+  /* les polices et les images peuvent décaler la grille : on recale les fils une fois tout chargé */
+  addEventListener('load', () => sewing?.layout())
+  document.fonts?.ready.then(() => sewing?.layout())
   document.documentElement.classList.add('ready')
   requestAnimationFrame(frame)
 }
