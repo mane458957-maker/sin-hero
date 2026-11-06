@@ -113,6 +113,7 @@ function start() {
   const cta = document.getElementById('cta')
   const swatches = document.getElementById('swatches')
   const swatchName = document.getElementById('swatch-name')
+  const model = document.getElementById('model')
 
   let W = 1
   let Hh = 1
@@ -220,6 +221,7 @@ function start() {
   function updateSwatches() {
     ;[...swatches.children].forEach((b, i) => b.setAttribute('aria-pressed', i === colorIndex))
     swatchName.textContent = COLORS[colorIndex].name
+    model.textContent = COLORS[colorIndex].title.replace('SIN RED', '').trim()
     shots.forEach((s, i) => s.classList.toggle('on', i === colorIndex))
     cta.href = COLORS[colorIndex].href
   }
