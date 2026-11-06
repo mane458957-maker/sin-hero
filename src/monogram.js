@@ -40,8 +40,23 @@ export function createMonogram(canvas) {
   let gapX = 1
   let gapY = 1
   let empty = false
+  /* la lumière suit le pointeur avec un léger retard, et s'éteint quand le doigt quitte l'écran */
+  const spot = { x: 0, y: 0, toX: 0, toY: 0, on: 0, lit: false, until: 0 }
 
   return {
+    point(x, y, touch) {
+      if (!spot.lit && spot.on < 0.02) {
+        spot.x = x
+        spot.y = y
+      }
+      spot.toX = x
+      spot.toY = y
+      spot.lit = true
+      spot.until = touch ? performance.now() + 1100 : Infinity
+    },
+    release() {
+      spot.lit = false
+    },
     resize(w, h) {
       width = w
       height = h
@@ -68,11 +83,20 @@ export function createMonogram(canvas) {
       const travel = width + height
       const wave = (((time * 0.16) % 1.5) - 0.25) * travel
       const spread = travel * 0.13
+
+      if (performance.now() > spot.until) spot.lit = false
+      spot.on += ((spot.lit ? 1 : 0) - spot.on) * 0.09
+      spot.x += (spot.toX - spot.x) * 0.16
+      spot.y += (spot.toY - spot.y) * 0.16
+      const reach = Math.min(240, Math.max(130, Math.min(width, height) * 0.3))
       let row = 0
       for (let y = gapY * 0.3; y < height + gapY; y += gapY, row++) {
         for (let x = (row % 2) * (gapX / 2) - gapX / 2; x < width + gapX; x += gapX) {
           const d = (x + y - wave) / spread
-          ctx.globalAlpha = level * (0.1 + 0.6 * Math.exp(-d * d))
+          const dx = x + stampW / 2 - spot.x
+          const dy = y + stampH / 2 - spot.y
+          const light = 0.85 * spot.on * Math.exp(-(dx * dx + dy * dy) / (reach * reach))
+          ctx.globalAlpha = level * Math.min(1, 0.1 + 0.6 * Math.exp(-d * d) + light)
           ctx.drawImage(stamp, x, y, stampW, stampH)
         }
       }

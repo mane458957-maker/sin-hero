@@ -94,6 +94,10 @@ function start() {
     return { el, a, b }
   })
   const monogram = createMonogram(document.getElementById('monogram'))
+  addEventListener('pointermove', (e) => monogram.point(e.clientX, e.clientY, e.pointerType === 'touch'), { passive: true })
+  addEventListener('pointerdown', (e) => monogram.point(e.clientX, e.clientY, e.pointerType === 'touch'), { passive: true })
+  addEventListener('touchmove', (e) => monogram.point(e.touches[0].clientX, e.touches[0].clientY, true), { passive: true })
+  document.documentElement.addEventListener('mouseleave', () => monogram.release())
   const threads = createThreads(document.getElementById('threads'), { maxRatio: COARSE ? 1.25 : 1.5 })
   const photos = document.getElementById('photos')
   const brand = document.getElementById('brand')
