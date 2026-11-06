@@ -41,7 +41,7 @@ const FIRST = 2
 const PHONE = matchMedia('(max-aspect-ratio: 85/100), (max-width: 760px)').matches
 const SCROLL_VH = PHONE ? 1181 : 1061
 const PAINT_FROM = 0.8
-const HINT_FROM = 0.98
+const HINT_FROM = 0.82
 const isDark = (hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
   return 0.299 * r + 0.587 * g + 0.114 * b < 128
@@ -322,7 +322,7 @@ function start() {
     current += (target - current) * (1 - Math.exp(-dt / (COARSE ? 40 : 60)))
     if (Math.abs(target - current) < 0.00005) current = target
     sewing?.update(scrollY)
-    /* dernier coloris : on invite à continuer, jusqu'au départ des fils */
+    /* pendant tous les coloris : on invite à continuer, jusqu'au départ des fils */
     next.classList.toggle('on', !!sewing && current >= HINT_FROM && !sewing.started())
 
     /* les fils vivent dès l'ouverture, sans attendre le scroll, et se resserrent quand le logo fond */
