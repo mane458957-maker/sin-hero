@@ -3,9 +3,9 @@
    couleur et disparaît à l'intérieur comme s'il était cousu. Tout est lié au scroll.
    Les fils sont peints sur un canvas : une ligne vectorielle ne peut pas avoir l'aspect d'un fil torsadé. */
 const HEAD_AT = 0.7
-const STAGGER = 22
 const STEP = 3
 const PIECE = 0.5
+const UP_MARGIN = 60
 /* repères sur les photos produit : le bouton du dessus, puis la couronne autour de laquelle le fil tourne */
 const BUTTON = { x: 0.545, y: 0.33 }
 const COIL = { x: 0.535, rx: 0.235, ry: 0.052, top: 0.37, bottom: 0.6, turns: 3.5 }
@@ -62,6 +62,20 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
   let ratio = 1
   let viewW = 1
   let viewH = 1
+
+  /* l'effet ne se joue qu'une fois, en descendant : on retient le point le plus bas atteint */
+  let lowest = 0
+  let finished = false
+
+  function finish() {
+    finished = true
+    canvas.style.transition = 'opacity .5s ease'
+    canvas.style.opacity = 0
+    for (const t of threads) {
+      t.img.style.transition = 'opacity .6s ease'
+      t.img.style.opacity = 1
+    }
+  }
 
   function fit() {
     ratio = Math.min(devicePixelRatio || 1, 2)
@@ -139,7 +153,7 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
       }
 
       const capY = r.top + r.height * BUTTON.y + scrollY
-      t.from = release - hold + i * STAGGER
+      t.from = release - hold
       t.done = Math.min(capY - vh * HEAD_AT + vh * 0.42, maxScroll - (colors.length - i) * 2)
       t.arrive = Math.min(capY - vh * HEAD_AT, t.done - vh * 0.2)
     })
@@ -207,8 +221,12 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
   }
 
   function update(y) {
-    if (y === last) return
+    if (finished || y === last) return
     last = y
+    lowest = Math.max(lowest, y)
+    /* dès qu'on remonte, les fils s'effacent et la grille reste en couleurs pour de bon */
+    if (lowest > threads[0].from && y < lowest - UP_MARGIN) return finish()
+
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     ctx.clearRect(0, 0, viewW, viewH)
     /* pendant que l'écran reste immobile, les fils restent accrochés aux pastilles */
@@ -217,12 +235,12 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
     const screenBottom = screenTop + viewH + 24
 
     for (const t of threads) {
-      const reach = clamp((y - t.from) / Math.max(1, t.arrive - t.from))
-      const wrap = clamp((y - t.arrive) / Math.max(1, t.done - t.arrive))
+      const reach = clamp((lowest - t.from) / Math.max(1, t.arrive - t.from))
+      const wrap = clamp((lowest - t.arrive) / Math.max(1, t.done - t.arrive))
       t.img.style.opacity = smooth(0.25, 0.85, wrap).toFixed(3)
 
       /* un morceau de fil se détache de sa pastille et voyage : la queue suit la pointe à distance
-         constante, puis rentre dans la casquette. En remontant, il refait le chemin vers sa couleur */
+         constante, puis rentre dans la casquette */
       const head = t.run * reach + (t.length - t.run) * Math.min(1, wrap / 0.6)
       const tail = Math.max(head - viewH * PIECE, t.length * smooth(0.5, 1, wrap))
       if (head - tail < 1) continue
