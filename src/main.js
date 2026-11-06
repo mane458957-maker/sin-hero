@@ -40,6 +40,11 @@ const FIRST = 2
 /* sur téléphone l'écran reste immobile plus longtemps : les fils se déroulent plus lentement sous le doigt */
 const PHONE = matchMedia('(max-aspect-ratio: 85/100), (max-width: 760px)').matches
 const SCROLL_VH = PHONE ? 1181 : 1061
+const PAINT_FROM = 0.8
+const isDark = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128
+}
 const COLORS_AT = 426 / SCROLL_VH
 const COLORS_END = 921 / SCROLL_VH
 const RUSH = 22
@@ -175,15 +180,26 @@ function start() {
       colorIndex = idx
       updateSwatches()
     }
+
+    /* le fond prend la couleur de la casquette, une fois la photo posée */
+    const paint = p >= PAINT_FROM ? colorIndex : -1
+    if (paint !== painted) {
+      painted = paint
+      const fill = paint < 0 ? '' : COLORS[paint].bg || COLORS[paint].hex
+      pin.style.backgroundColor = fill
+      hero.style.backgroundColor = fill
+      pin.classList.toggle('dark', paint >= 0 && isDark(fill))
+    }
   }
 
+  let painted = -1
   let colorIndex = 0
   let lockedColor = -1
   const shots = COLORS.map((c) => {
     const img = new Image()
     img.alt = c.title
     img.decoding = 'sync'
-    img.src = `./caps/${c.id}.jpg`
+    img.src = `./cut/${c.id}.webp`
     photos.append(img)
     return img
   })
