@@ -91,6 +91,7 @@ main { position: relative; }
 .card small { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; color: #555; }
 
 @media (max-aspect-ratio: 85/100), (max-width: 760px) {
+  .hero { height: 1281vh; }
   .links, .tools span { display: none; }
   .c-hint { bottom: 36px; font-size: 15px; }
   .c-hint i { height: 56px; }

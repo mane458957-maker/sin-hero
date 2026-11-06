@@ -37,8 +37,11 @@ const T = { meltFrom: 0.05, meltTo: 0.26, fadeFrom: 0.36, fadeTo: 0.47, handFrom
    Il passe ensuite vite sur les premières images, pour arriver tout de suite dans la rotation */
 const FIRST = 2
 /* parts du scroll : animation, puis coloris, puis écran immobile pendant le départ des fils */
-const COLORS_AT = 426 / 1061
-const COLORS_END = 921 / 1061
+/* sur téléphone l'écran reste immobile plus longtemps : les fils se déroulent plus lentement sous le doigt */
+const PHONE = matchMedia('(max-aspect-ratio: 85/100), (max-width: 760px)').matches
+const SCROLL_VH = PHONE ? 1181 : 1061
+const COLORS_AT = 426 / SCROLL_VH
+const COLORS_END = 921 / SCROLL_VH
 const RUSH = 22
 
 /* la grille ne dépend pas de l'animation */
@@ -205,7 +208,7 @@ function start() {
 
   const sewing = REDUCED
     ? null
-    : createSewing({ canvas: document.getElementById('sew'), measure: document.getElementById('sew-measure'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS, holdRatio: 140 / 1161 })
+    : createSewing({ canvas: document.getElementById('sew'), measure: document.getElementById('sew-measure'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS, holdRatio: (SCROLL_VH - 921) / (SCROLL_VH + 100) })
 
   let sewnWidth = 0
   function resize() {
