@@ -60,11 +60,16 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
   let originY = 0
   let width = 3
   let ratio = 1
+  let viewW = 1
+  let viewH = 1
 
   function fit() {
     ratio = Math.min(devicePixelRatio || 1, 2)
-    canvas.width = Math.round(innerWidth * ratio)
-    canvas.height = Math.round(innerHeight * ratio)
+    /* hauteur de la grande fenêtre : le canvas ne bouge pas quand la barre d'adresse apparaît */
+    viewW = canvas.clientWidth
+    viewH = canvas.clientHeight
+    canvas.width = Math.round(viewW * ratio)
+    canvas.height = Math.round(viewH * ratio)
     last = -1
   }
 
@@ -205,11 +210,11 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
     if (y === last) return
     last = y
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
-    ctx.clearRect(0, 0, innerWidth, innerHeight)
+    ctx.clearRect(0, 0, viewW, viewH)
     /* pendant que l'écran reste immobile, les fils restent accrochés aux pastilles */
     const dy = originY - y + Math.min(0, y - release)
     const screenTop = -dy - 12
-    const screenBottom = screenTop + innerHeight + 24
+    const screenBottom = screenTop + viewH + 24
 
     for (const t of threads) {
       const reach = clamp((y - t.from) / Math.max(1, t.arrive - t.from))
@@ -219,7 +224,7 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
       /* un morceau de fil se détache de sa pastille et voyage : la queue suit la pointe à distance
          constante, puis rentre dans la casquette. En remontant, il refait le chemin vers sa couleur */
       const head = t.run * reach + (t.length - t.run) * Math.min(1, wrap / 0.6)
-      const tail = Math.max(head - innerHeight * PIECE, t.length * smooth(0.5, 1, wrap))
+      const tail = Math.max(head - viewH * PIECE, t.length * smooth(0.5, 1, wrap))
       if (head - tail < 1) continue
 
       let k0 = Math.floor(tail / STEP)

@@ -266,7 +266,14 @@ function start() {
   }
 
   const lenis = COARSE || REDUCED ? null : new Lenis({ lerp: 0.09, wheelMultiplier: 0.9 })
-  addEventListener('resize', resize)
+  /* sur téléphone, la barre d'adresse revient quand on remonte et déclenche des "resize" en rafale :
+     seul un vrai changement de largeur (rotation) doit tout recalculer */
+  let screenWidth = innerWidth
+  addEventListener('resize', () => {
+    if (COARSE && innerWidth === screenWidth) return
+    screenWidth = innerWidth
+    resize()
+  })
 
   let visible = true
   new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(hero)
