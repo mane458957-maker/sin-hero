@@ -41,6 +41,7 @@ const FIRST = 2
 const PHONE = matchMedia('(max-aspect-ratio: 85/100), (max-width: 760px)').matches
 const SCROLL_VH = PHONE ? 1181 : 1061
 const PAINT_FROM = 0.8
+const HINT_FROM = 0.98
 const isDark = (hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
   return 0.299 * r + 0.587 * g + 0.114 * b < 128
@@ -114,6 +115,8 @@ function start() {
   const swatches = document.getElementById('swatches')
   const swatchName = document.getElementById('swatch-name')
   const model = document.getElementById('model')
+  const next = document.getElementById('next')
+  const shop = document.querySelector('.c-shop')
 
   let W = 1
   let Hh = 1
@@ -229,7 +232,7 @@ function start() {
 
   const sewing = REDUCED
     ? null
-    : createSewing({ canvas: document.getElementById('sew'), measure: document.getElementById('sew-measure'), hero, pin, copy: document.querySelector('.c-shop'), swatches, cards: [...grid.children], colors: COLORS, holdRatio: (SCROLL_VH - 921) / (SCROLL_VH + 100) })
+    : createSewing({ canvas: document.getElementById('sew'), measure: document.getElementById('sew-measure'), hero, pin, copy: shop, swatches, cards: [...grid.children], colors: COLORS, holdRatio: (SCROLL_VH - 921) / (SCROLL_VH + 100) })
 
   let sewnWidth = 0
   function resize() {
@@ -267,6 +270,8 @@ function start() {
     stage.x = W / 2
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
     threads.resize(W, Hh, stage.y)
+    /* sur téléphone le bas est occupé : l'indication se cale à droite du titre */
+    next.style.bottom = PHONE ? `${shop.offsetHeight + 26 - next.offsetHeight}px` : ''
     monogram.resize(W, Hh)
     /* la barre d'adresse mobile change la hauteur à chaque scroll : seul un changement de largeur recale les fils */
     if (W !== sewnWidth) sewing?.layout()
@@ -317,6 +322,8 @@ function start() {
     current += (target - current) * (1 - Math.exp(-dt / (COARSE ? 40 : 60)))
     if (Math.abs(target - current) < 0.00005) current = target
     sewing?.update(scrollY)
+    /* dernier coloris : on invite à continuer, jusqu'au départ des fils */
+    next.classList.toggle('on', !!sewing && current >= HINT_FROM && !sewing.started())
 
     /* les fils vivent dès l'ouverture, sans attendre le scroll, et se resserrent quand le logo fond */
     if (visible && current < T.fadeTo) {

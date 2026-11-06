@@ -254,5 +254,8 @@ export function createSewing({ canvas, measure, hero, pin, copy, swatches, cards
     }
   }
 
-  return { layout, update, fit }
+  /* une fois les fils partis, c'est définitif : ils ne rejouent jamais */
+  const started = () => finished || (threads.length > 0 && lowest > threads[0].from)
+
+  return { layout, update, fit, started }
 }
