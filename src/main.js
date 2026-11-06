@@ -6,7 +6,7 @@ import { buildMorph } from './morph.js'
 import { createFilm } from './film.js'
 import { createThreads } from './threads.js'
 import { createSewing } from './sewing.js'
-import { createRain } from './rain.js'
+import { createMonogram } from './monogram.js'
 import './style.css'
 
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
@@ -93,7 +93,7 @@ function start() {
     const [a, b] = el.dataset.rise.split(' ').map(Number)
     return { el, a, b }
   })
-  const rain = createRain(document.getElementById('rain'), { colors: COLORS })
+  const monogram = createMonogram(document.getElementById('monogram'))
   const threads = createThreads(document.getElementById('threads'), { maxRatio: COARSE ? 1.25 : 1.5 })
   const photos = document.getElementById('photos')
   const brand = document.getElementById('brand')
@@ -239,7 +239,7 @@ function start() {
     stage.x = W / 2
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
     threads.resize(W, Hh, stage.y)
-    rain.resize(W, Hh)
+    monogram.resize(W, Hh)
     /* la barre d'adresse mobile change la hauteur à chaque scroll : seul un changement de largeur recale les fils */
     if (W !== sewnWidth) sewing?.layout()
     else sewing?.fit()
@@ -286,8 +286,8 @@ function start() {
     /* les fils vivent dès l'ouverture, sans attendre le scroll, et se resserrent quand le logo fond */
     if (visible && current < T.fadeTo) {
       threads.draw(now / 1000, seg(T.meltFrom, T.meltTo + 0.04, current), seg(0.1, 0.2, current) * (1 - seg(T.fadeFrom - 0.04, T.fadeFrom + 0.02, current)))
-      /* la pluie part dès que le logo commence à descendre */
-      rain.draw(now / 1000, 1 - seg(T.meltFrom, T.meltFrom + 0.08, current))
+      /* le monogramme part dès que le logo commence à descendre */
+      monogram.draw(now / 1000, 1 - seg(T.meltFrom, T.meltFrom + 0.08, current))
     }
 
     /* le trait vit même quand le visiteur ne scrolle pas */
