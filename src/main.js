@@ -181,14 +181,17 @@ function start() {
       updateSwatches()
     }
 
-    /* le fond prend la couleur de la casquette, une fois la photo posée */
+    /* le fond prend la lumière de la casquette, une fois la photo posée */
     const paint = p >= PAINT_FROM ? colorIndex : -1
     if (paint !== painted) {
       painted = paint
-      const fill = paint < 0 ? '' : COLORS[paint].bg || COLORS[paint].hex
-      pin.style.backgroundColor = fill
-      hero.style.backgroundColor = fill
-      pin.classList.toggle('dark', paint >= 0 && isDark(fill))
+      const { glow = '', deep = '' } = COLORS[paint] || {}
+      pin.style.setProperty('--g-in', glow)
+      pin.style.setProperty('--g-out', deep)
+      pin.style.backgroundColor = deep
+      hero.style.backgroundColor = deep
+      pin.classList.toggle('tinted', paint >= 0)
+      pin.classList.toggle('dark', paint >= 0 && isDark(deep))
     }
   }
 
