@@ -218,6 +218,16 @@ function start() {
     b.addEventListener('click', () => {
       lockedColor = i
       dirty = true
+      /* coloris choisi à la main : on saute à la fin du défilement des coloris,
+         le prochain coup de scroll lance directement les fils */
+      const r = hero.getBoundingClientRect()
+      const span = Math.max(1, r.height - innerHeight)
+      const s = -r.top / span
+      if (s > COLORS_AT - 0.02 && s < COLORS_END - 0.06 * innerHeight / span) {
+        const y = scrollY + r.top + COLORS_END * span - innerHeight * 0.05
+        if (lenis) lenis.scrollTo(y, { immediate: true })
+        else scrollTo({ top: y, behavior: 'instant' })
+      }
     })
     swatches.append(b)
   })
@@ -271,7 +281,6 @@ function start() {
     stage.y = 96 + (room - size * CAP_SPAN) * 0.4 + size * (STRAP.y - CAP_TOP)
     threads.resize(W, Hh, stage.y)
     /* sur téléphone le bas est occupé : l'indication se cale à droite du titre */
-    next.style.bottom = PHONE ? `${shop.offsetHeight + 26 - next.offsetHeight}px` : ''
     monogram.resize(W, Hh)
     /* la barre d'adresse mobile change la hauteur à chaque scroll : seul un changement de largeur recale les fils */
     if (W !== sewnWidth) sewing?.layout()

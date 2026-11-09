@@ -113,14 +113,16 @@ main { position: relative; }
   .links, .tools span { display: none; }
   .c-hint { bottom: 36px; font-size: 15px; }
   .c-hint i { height: 56px; }
-  .c-next { left: auto; right: 16px; }
+  /* sous le bouton « Voir ce modèle » */
+  .c-next { bottom: 10px; font-size: 11px; letter-spacing: .28em; }
+  .c-next i { height: 22px; margin-top: 6px; }
   .photos { right: auto; left: calc(50% - var(--ps) * .457); top: calc(var(--header) + 12px); translate: 0 0; width: var(--ps); }
   .grid { grid-template-columns: repeat(2, 1fr); }
   .nav { grid-template-columns: 1fr auto 1fr; }
   .c-strap { bottom: 9vh; right: 16px; }
   .pin { --g-size: 105% 56%; --g-at: 50% 34%; --ps: min(135vw, 120vh); --ps: min(135vw, 120svh); }
   .filmbox { right: auto; left: calc(50% - var(--ps) * .415); top: calc(var(--header) + 12px); translate: 0 0; }
-  .c-shop { left: 16px; right: 16px; top: auto; bottom: 26px; translate: 0 0; }
+  .c-shop { left: 16px; right: 16px; top: auto; bottom: 62px; translate: 0 0; }
   .c-shop h2 { font-size: 32px; }
   .c-shop h2 span { font-size: .62em; }
   .c-shop .body { display: none; }
